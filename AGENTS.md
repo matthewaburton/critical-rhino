@@ -93,7 +93,19 @@ To release:
    keeping Markdown headings: `git tag -a v0.2.0 --cleanup=verbatim -F notes.md`.
 3. The maintainer pushes the commit and the tag: `git push origin main v0.2.0`.
    Agents never push.
+4. The maintainer uploads the release's `.vsix` to Open VSX: drag it onto the
+   **Publish** button at open-vsx.org. This step goes away once Open VSX trusts the
+   workflow (below).
 
 The release workflow checks again, refuses a tag that isn't annotated or doesn't
 match `VERSION`, creates the GitHub release with the tag's notes and the `.vsix`
-attached, and deploys the site to GitHub Pages. The site changes only on a release.
+attached, deploys the site to GitHub Pages, and publishes the same `.vsix` to the
+Visual Studio Marketplace. The site changes only on a release.
+
+Publishing stores no token. The Marketplace publisher `matthewaburton` has a Trusted
+Publishing policy for `release.yml` in the `publish` environment, which allows only
+`v*` tags; the `marketplace` job exchanges GitHub's OIDC token for a short-lived
+Marketplace one. Open VSX offers the same once its `matthewaburton` namespace has a
+verified owner: register `release.yml` and `publish` there, then add a job that runs
+`npx ovsx publish --trusted-publishing` on the release's `.vsix`. If a store refuses
+a version, fix it and re-run the failed job; a version that's already up is skipped.

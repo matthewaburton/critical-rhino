@@ -1,6 +1,7 @@
 # On an annotated vX.Y.Z tag: check everything again, create the GitHub release with
 # the tag's message as its notes and the .vsix attached, then deploy the site to
-# GitHub Pages. The site changes only here. AGENTS.md has the release steps.
+# GitHub Pages and publish the .vsix to the Visual Studio Marketplace. The site
+# changes only here. AGENTS.md has the release steps.
 name: Release
 
 on:
@@ -74,3 +75,32 @@ jobs:
     steps:
       - id: deploy
         uses: actions/deploy-pages@v5
+
+  # Trusted Publishing: the Marketplace publisher has a policy that trusts this
+  # workflow file, in the publish environment, so no token is stored anywhere. The
+  # publish environment only allows v* tags. It publishes the file the release
+  # carries, so the store and GitHub have the same bytes, and a re-run skips a
+  # version that's already up.
+  marketplace:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: publish
+      url: https://marketplace.visualstudio.com/items?itemName=matthewaburton.critical-rhino
+    steps:
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+      - name: Download the release's .vsix
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --pattern "critical-rhino-${GITHUB_REF_NAME#v}.vsix"
+      - name: Publish to the Visual Studio Marketplace
+        env:
+          NPM_CONFIG_IGNORE_SCRIPTS: "true"   # vsce runs without its dependencies' install scripts
+        run: >-
+          npx --yes @vscode/vsce@4.1.0 publish --oidc --skip-duplicate
+          --packagePath "critical-rhino-${GITHUB_REF_NAME#v}.vsix"
