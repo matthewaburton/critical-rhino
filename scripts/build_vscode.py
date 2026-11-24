@@ -48,6 +48,9 @@ EXT_DIR = rhino.ROOT / "extras" / "vscode"
 THEME_DIR = EXT_DIR / "themes"
 PUBLISHER = "matthewaburton"
 NAME = "critical-rhino"
+EXTENSION_ID = f"{PUBLISHER}.{NAME}"   # what `code --install-extension` and the stores call it
+MARKETPLACE_URL = f"https://marketplace.visualstudio.com/items?itemName={EXTENSION_ID}"   # VS Code's store
+OPEN_VSX_URL = f"https://open-vsx.org/extension/{PUBLISHER}/{NAME}"   # Cursor's, VSCodium's and others'
 DESCRIPTION = "A warm dark and light color theme: cream on near-black, readable at 4.5:1 everywhere."
 ICON = "icon.png"
 ICON_APPEARANCE = "dark"   # cream on near-black, on its own ground, so it holds on light and dark store pages

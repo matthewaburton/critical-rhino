@@ -594,8 +594,7 @@ def screenshots_section() -> str:
 
 
 def install_section(known: set[str]) -> str:
-    vsix = build_vscode.vsix_path().name
-    vsix_url = f"{rhino.REPO_URL}/releases/download/v{rhino.VERSION}/{vsix}"
+    ext_id = build_vscode.EXTENSION_ID
     clone = ("Terminal, once", f"git clone {rhino.REPO_URL}.git ~/critical-rhino")
     home = "~/critical-rhino/extras"
     tools = [
@@ -607,10 +606,12 @@ def install_section(known: set[str]) -> str:
            ('{\n  «string|"matthewaburton/critical-rhino"»,\n  lazy = «keyword|false»,\n  priority = «number|1000»,\n'
            '  config = «keyword|function»()\n    vim.cmd.colorscheme(«string|"critical-rhino"»)\n  «keyword|end»,\n},'))]),
         ("vscode", "VS Code and Cursor",
-         (f'Download <a href="{esc(vsix_url)}">{esc(vsix)}</a> and install it with <b>Extensions: Install from '
-         "VSIX…</b>, or from a terminal. Then pick <b>Critical Rhino Dark</b> or <b>Critical Rhino Light</b> "
-         "with <b>Preferences: Color Theme</b>, or follow the desktop with the settings below."),
-         [("Terminal", f"code --install-extension {vsix}\ncursor --install-extension {vsix}"),
+         ("Search the Extensions view for <b>Critical Rhino</b>, or install it from a terminal. VS Code gets it "
+         f'from the <a href="{esc(build_vscode.MARKETPLACE_URL)}">Visual Studio Marketplace</a>, and Cursor and '
+         f'VSCodium from <a href="{esc(build_vscode.OPEN_VSX_URL)}">Open VSX</a>. Then pick '
+         "<b>Critical Rhino Dark</b> or <b>Critical Rhino Light</b> with <b>Preferences: Color Theme</b>, or "
+         "follow the desktop with the settings below."),
+         [("Terminal", f"code --install-extension {ext_id}\ncursor --install-extension {ext_id}"),
           ("settings.json",
            ('«string|"window.autoDetectColorScheme"»: «keyword|true»,\n'
            '«string|"workbench.preferredDarkColorTheme"»: «string|"Critical Rhino Dark"»,\n'
@@ -655,7 +656,7 @@ def install_section(known: set[str]) -> str:
   <div class="intro">
     <p class="eyebrow">07 · Install</p>
     <h2 id="h-install">Install</h2>
-    <p>Neovim installs like any colorscheme plugin, and VS Code and Cursor from a download. The other themes
+    <p>Neovim installs like any colorscheme plugin, and VS Code and Cursor from their extension stores. The other themes
     are plain files: clone the repository somewhere it can stay and point each tool at it. The
     <a href="{rhino.REPO_URL}#install">README</a> has more on each tool.</p>
   </div>

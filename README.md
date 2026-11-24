@@ -60,7 +60,7 @@ colors.
 
 ## Install
 
-Neovim installs as a plugin and VS Code from a download. For everything else, clone
+Neovim installs as a plugin and VS Code from its extension store. For everything else, clone
 the repo somewhere it can stay. The examples below assume `~/critical-rhino`:
 
 ```sh
@@ -113,18 +113,23 @@ can't reach:
 
 ### VS Code and Cursor
 
-The extension isn't on the Marketplace yet. Download `critical-rhino-<version>.vsix`
-from the [latest release](https://github.com/matthewaburton/critical-rhino/releases/latest)
-and install it with **Extensions: Install from VSIX...**, or from a terminal:
+Search the Extensions view for **Critical Rhino**, or install it from a terminal.
+VS Code gets it from the
+[Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=matthewaburton.critical-rhino),
+and Cursor, VSCodium and other VS Code forks from
+[Open VSX](https://open-vsx.org/extension/matthewaburton/critical-rhino):
 
 ```sh
-code --install-extension critical-rhino-<version>.vsix
-cursor --install-extension critical-rhino-<version>.vsix
+code --install-extension matthewaburton.critical-rhino
+cursor --install-extension matthewaburton.critical-rhino
 ```
 
-Or build it from the clone (this needs Python 3.11 or later and nothing else) and
-install it into every copy of VS Code and Cursor on your machine with
-`make vscode:install`; `make vscode:package` only writes the `.vsix` into `build/`.
+Each [release](https://github.com/matthewaburton/critical-rhino/releases/latest)
+also carries `critical-rhino-<version>.vsix`, which **Extensions: Install from
+VSIX...** takes. Or build it from the clone (this needs Python 3.11 or later and
+nothing else) and install it into every copy of VS Code and Cursor on your machine
+with `make vscode:install`; `make vscode:package` only writes the `.vsix` into
+`build/`.
 
 Then pick **Critical Rhino Dark** or **Critical Rhino Light** with
 **Preferences: Color Theme**, or follow the desktop:
