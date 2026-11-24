@@ -1,12 +1,13 @@
 """Build the VS Code and Cursor theme extension from palette.toml.
 
-    python3 scripts/build_vscode.py            # write extras/vscode/package.json and themes/*.json
+    python3 scripts/build_vscode.py            # write extras/vscode/: package.json, icon.png, themes/*.json
     python3 scripts/build_vscode.py --check    # fail (exit 1) if they're stale or a pairing is unreadable
     python3 scripts/build_vscode.py --report   # print every measured pair, worst first
     python3 scripts/build_vscode.py --package  # also write build/critical-rhino-<version>.vsix
     python3 scripts/build_vscode.py --install  # package it and install it into VS Code and Cursor
 
-Cursor is a fork of VS Code and reads the same extension.
+Cursor is a fork of VS Code and reads the same extension. Its icon is the logo's
+dark icon as a PNG (logo.icon_png); the stores refuse SVG icons.
 
 Every key that colors text (or a mark that must stand out, at 3:1) says where it's
 drawn, as stacks of background keys: "list.hoverBackground>sideBar.background" is
@@ -36,8 +37,10 @@ import subprocess
 import sys
 import zipfile
 from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 
+import logo
 import rhino
 from rhino import Color
 
@@ -45,6 +48,9 @@ EXT_DIR = rhino.ROOT / "extras" / "vscode"
 THEME_DIR = EXT_DIR / "themes"
 PUBLISHER = "matthewaburton"
 NAME = "critical-rhino"
+DESCRIPTION = "A warm dark and light color theme: cream on near-black, readable at 4.5:1 everywhere."
+ICON = "icon.png"
+ICON_APPEARANCE = "dark"   # cream on near-black, on its own ground, so it holds on light and dark store pages
 ENGINE = "^1.90.0"
 TEXT, DIM = rhino.TEXT_MIN, rhino.DIM_MIN
 CLEAR = "#00000000"
@@ -1320,14 +1326,17 @@ def theme_json(v: rhino.Variant) -> tuple[dict, Theme]:
     return doc, t
 
 
-def package_json(variants: list[str]) -> dict:
+def package_json(variants: list[str], banner: str) -> dict:
+    """The manifest. banner is the color behind the store listing's header: the dark background."""
     return {
         "name": NAME,
         "displayName": "Critical Rhino",
-        "description": "A warm dark and light color theme: cream on near-black, readable at 4.5:1 everywhere.",
+        "description": DESCRIPTION,
         "version": rhino.VERSION,
         "publisher": PUBLISHER,
         "license": "MIT",
+        "icon": ICON,
+        "galleryBanner": {"color": banner, "theme": "dark"},
         "homepage": rhino.SITE_URL,
         "repository": {"type": "git", "url": f"{rhino.REPO_URL}.git"},
         "bugs": {"url": f"{rhino.REPO_URL}/issues"},
@@ -1341,7 +1350,7 @@ def package_json(variants: list[str]) -> dict:
     }
 
 
-def outputs(data: dict) -> tuple[dict[Path, str], list[str], dict[str, Theme]]:
+def outputs(data: dict) -> tuple[dict[Path, str | bytes], list[str], dict[str, Theme]]:
     files, errors, themes = {}, [], {}
     names = rhino.appearances(data)
     for name in names:
@@ -1351,43 +1360,89 @@ def outputs(data: dict) -> tuple[dict[Path, str], list[str], dict[str, Theme]]:
         errors += e
         themes[name] = t
         files[THEME_DIR / f"critical-rhino-{name}-color-theme.json"] = json.dumps(doc, indent=2) + "\n"
-    files[EXT_DIR / "package.json"] = json.dumps(package_json(names), indent=2) + "\n"
+    ink, accent, ground = logo.palette_colors(data, ICON_APPEARANCE)
+    files[EXT_DIR / ICON] = logo.icon_png(ink, accent, ground)
+    files[EXT_DIR / "package.json"] = json.dumps(package_json(names, ground), indent=2) + "\n"
     return files, errors, themes
 
 
-VSIX_MANIFEST = """<?xml version="1.0" encoding="utf-8"?>
-<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
-  <Metadata>
-    <Identity Language="en-US" Id="{name}" Version="{version}" Publisher="{publisher}" />
-    <DisplayName>Critical Rhino</DisplayName>
-    <Description xml:space="preserve">{description}</Description>
-    <Tags>theme,color-theme,dark,light</Tags>
-    <Categories>Themes</Categories>
-    <GalleryFlags>Public</GalleryFlags>
-    <Properties>
-      <Property Id="Microsoft.VisualStudio.Code.Engine" Value="{engine}" />
-      <Property Id="Microsoft.VisualStudio.Code.ExtensionDependencies" Value="" />
-      <Property Id="Microsoft.VisualStudio.Code.ExtensionPack" Value="" />
-      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="ui,workspace" />
-      <Property Id="Microsoft.VisualStudio.Code.LocalizedLanguages" Value="" />
-    </Properties>
-  </Metadata>
-  <Installation>
-    <InstallationTarget Id="Microsoft.VisualStudio.Code" />
-  </Installation>
-  <Dependencies />
-  <Assets>
-    <Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true" />
-    <Asset Type="Microsoft.VisualStudio.Services.Content.License" Path="extension/LICENSE.txt" Addressable="true" />
-  </Assets>
-</PackageManifest>
-"""
+def current(path: Path, content: str | bytes) -> bool:
+    """Whether path already holds content. The icon is compared by its pixels."""
+    if not path.exists():
+        return False
+    if isinstance(content, bytes):
+        return logo.png_pixels(path.read_bytes()) == logo.png_pixels(content)
+    return path.read_text(encoding="utf-8") == content
+
+
+# What a .vsix's assets are, by the path vsce gives each file in the package.
+ASSETS = {
+    "extension/LICENSE.txt": "Microsoft.VisualStudio.Services.Content.License",
+    "extension/README.md": "Microsoft.VisualStudio.Services.Content.Details",
+}
+
+
+def vsix_manifest(meta: dict, packaged: list[str]) -> str:
+    """extension.vsixmanifest for a package.json, as vsce writes it. Editors read package.json
+    itself; the stores build the listing from this: its links, banner, license, icon and README
+    (packaged lists the package's files, which decide the assets)."""
+    def prop(key: str, value: str) -> str:
+        return f'      <Property Id="{key}" Value="{escape(value)}" />\n'
+
+    props = [("Microsoft.VisualStudio.Code.Engine", meta["engines"]["vscode"]),
+             ("Microsoft.VisualStudio.Code.ExtensionDependencies", ""),
+             ("Microsoft.VisualStudio.Code.ExtensionPack", ""),
+             ("Microsoft.VisualStudio.Code.ExtensionKind", "ui,workspace"),
+             ("Microsoft.VisualStudio.Code.LocalizedLanguages", "")]
+    if repo := meta.get("repository", {}).get("url"):
+        props += [(f"Microsoft.VisualStudio.Services.Links.{k}", repo) for k in ("Source", "Getstarted", "Repository")]
+    if bugs := meta.get("bugs", {}).get("url"):
+        props.append(("Microsoft.VisualStudio.Services.Links.Support", bugs))
+    if homepage := meta.get("homepage"):
+        props.append(("Microsoft.VisualStudio.Services.Links.Learn", homepage))
+    if banner := meta.get("galleryBanner"):
+        props += [("Microsoft.VisualStudio.Services.Branding.Color", banner["color"]),
+                  ("Microsoft.VisualStudio.Services.Branding.Theme", banner["theme"])]
+    props += [("Microsoft.VisualStudio.Services.GitHubFlavoredMarkdown", "true"),
+              ("Microsoft.VisualStudio.Services.Content.Pricing", "Free")]
+    assets = {"extension/package.json": "Microsoft.VisualStudio.Code.Manifest"}
+    assets |= {path: kind for path, kind in ASSETS.items() if path in packaged}
+    extra = ""
+    if "extension/LICENSE.txt" in packaged:
+        extra += "    <License>extension/LICENSE.txt</License>\n"
+    if (icon := f"extension/{meta.get('icon')}") in packaged:
+        assets[icon] = "Microsoft.VisualStudio.Services.Icons.Default"
+        extra += f"    <Icon>{escape(icon)}</Icon>\n"
+    return ('<?xml version="1.0" encoding="utf-8"?>\n'
+            '<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" '
+            'xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">\n'
+            '  <Metadata>\n'
+            f'    <Identity Language="en-US" Id="{escape(meta["name"])}" Version="{escape(meta["version"])}" '
+            f'Publisher="{escape(meta["publisher"])}" />\n'
+            f'    <DisplayName>{escape(meta.get("displayName", meta["name"]))}</DisplayName>\n'
+            f'    <Description xml:space="preserve">{escape(meta.get("description", ""))}</Description>\n'
+            f'    <Tags>{escape(",".join(meta.get("keywords", [])))}</Tags>\n'
+            f'    <Categories>{escape(",".join(meta.get("categories", [])))}</Categories>\n'
+            '    <GalleryFlags>Public</GalleryFlags>\n'
+            '    <Properties>\n' + "".join(prop(k, v) for k, v in props) + '    </Properties>\n'
+            + extra +
+            '  </Metadata>\n'
+            '  <Installation>\n    <InstallationTarget Id="Microsoft.VisualStudio.Code" />\n  </Installation>\n'
+            '  <Dependencies />\n'
+            '  <Assets>\n'
+            + "".join(f'    <Asset Type="{kind}" Path="{escape(path)}" Addressable="true" />\n'
+                      for path, kind in assets.items()) +
+            '  </Assets>\n'
+            '</PackageManifest>\n')
+
+
 CONTENT_TYPES = """<?xml version="1.0" encoding="utf-8"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension=".json" ContentType="application/json" />
   <Default Extension=".vsixmanifest" ContentType="text/xml" />
   <Default Extension=".md" ContentType="text/markdown" />
   <Default Extension=".txt" ContentType="text/plain" />
+  <Default Extension=".png" ContentType="image/png" />
 </Types>
 """
 
@@ -1427,18 +1482,18 @@ def vsix_path() -> Path:
     return rhino.ROOT / "build" / f"{NAME}-{rhino.VERSION}.vsix"
 
 
-def package(files: dict[Path, str]) -> Path:
+def package(files: dict[Path, str | bytes]) -> Path:
     """A .vsix (a zip with a manifest) that `code --install-extension` and `cursor --install-extension` take."""
     out = vsix_path()
     out.parent.mkdir(parents=True, exist_ok=True)
-    meta = package_json([])
+    contents = {f"extension/{path.relative_to(EXT_DIR).as_posix()}": content for path, content in files.items()}
+    contents["extension/LICENSE.txt"] = (rhino.ROOT / "LICENSE").read_bytes()
+    manifest = vsix_manifest(json.loads(files[EXT_DIR / "package.json"]), list(contents))
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("extension.vsixmanifest", VSIX_MANIFEST.format(name=NAME, version=rhino.VERSION, publisher=PUBLISHER,
-                                                                  description=meta["description"], engine=ENGINE))
+        z.writestr("extension.vsixmanifest", manifest)
         z.writestr("[Content_Types].xml", CONTENT_TYPES)
-        for path, text in files.items():
-            z.writestr(f"extension/{path.relative_to(EXT_DIR).as_posix()}", text)
-        z.write(rhino.ROOT / "LICENSE", "extension/LICENSE.txt")
+        for name, content in contents.items():
+            z.writestr(name, content)
     return out
 
 
@@ -1461,7 +1516,7 @@ def main() -> int:
     files, errors, themes = outputs(rhino.load())
     if args.report:
         report(themes)
-    stale = [p for p, text in files.items() if not p.exists() or p.read_text(encoding="utf-8") != text]
+    stale = [p for p, content in files.items() if not current(p, content)]
     if args.check:
         errors += [f"{p.relative_to(rhino.ROOT)} is stale; run make vscode" for p in stale]
         for e in errors:
@@ -1477,7 +1532,10 @@ def main() -> int:
         return 1
     for p in stale:
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(files[p], encoding="utf-8")
+        if isinstance(content := files[p], bytes):
+            p.write_bytes(content)
+        else:
+            p.write_text(content, encoding="utf-8")
         print(f"wrote {p.relative_to(rhino.ROOT)}")
     if not stale:
         print("VS Code theme is up to date.")

@@ -491,3 +491,10 @@ Archivo (SIL Open Font License) at width 125 and weight 850, so the logo needs n
 font to render. The ink is each variant's text color. Icon tiles put the letters at
 80% of the width so they still read at 16 px. `make logo` draws it into
 `docs/images/`.
+
+The VS Code extension's icon, `extras/vscode/icon.png`, is the dark tile at 256 px:
+cream on near-black on its own ground, so it holds on the stores' light and dark
+pages, and they refuse SVG icons. `make vscode` rasterizes the same outlines in plain
+arithmetic, 16 samples down each pixel with exact coverage across it, so every
+machine draws the same pixels; `make vscode:check` compares them. The store listing's
+banner is the dark background.

@@ -5,6 +5,11 @@
   "version": "0.1.0",
   "publisher": "matthewaburton",
   "license": "MIT",
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#202020",
+    "theme": "dark"
+  },
   "homepage": "https://matthewaburton.github.io/critical-rhino/",
   "repository": {
     "type": "git",

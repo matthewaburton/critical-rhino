@@ -364,13 +364,14 @@ def free_port() -> int:
 
 def package_helper(dest: Path) -> Path:
     out = dest / "rhino-audit-scenes.vsix"
-    manifest = build_vscode.VSIX_MANIFEST.format(name="rhino-audit-scenes", version="0.0.1", publisher="local",
-                                                 description="audit only", engine="^1.90.0")
+    files = sorted((HERE / "helper").iterdir())
+    manifest = build_vscode.vsix_manifest(json.loads((HERE / "helper" / "package.json").read_text()),
+                                          [f"extension/{f.name}" for f in files])
     with zipfile.ZipFile(out, "w") as z:
         z.writestr("extension.vsixmanifest", manifest)
         z.writestr("[Content_Types].xml", build_vscode.CONTENT_TYPES.replace(
             "</Types>", '  <Default Extension=".js" ContentType="application/javascript" />\n</Types>'))
-        for f in (HERE / "helper").iterdir():
+        for f in files:
             z.write(f, f"extension/{f.name}")
     return out
 
