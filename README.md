@@ -12,6 +12,10 @@
   where every color the theme sets is measured on every surface it's drawn on.
 </p>
 
+<p align="center">
+  <a href="https://matthewaburton.github.io/critical-rhino/"><b>See the palette and every role on the site</b></a>
+</p>
+
 Cream text on near-black, or near-black on cream, with orange keywords, red strings,
 green comments, purple numbers and blue types. Both variants come from one palette,
 [`palette.toml`](palette.toml), and every theme here is generated from it and then
@@ -56,8 +60,8 @@ colors.
 
 ## Install
 
-For everything except Neovim, clone the repo somewhere it can stay. The examples
-below assume `~/critical-rhino`:
+Neovim installs as a plugin and VS Code from a download. For everything else, clone
+the repo somewhere it can stay. The examples below assume `~/critical-rhino`:
 
 ```sh
 git clone https://github.com/matthewaburton/critical-rhino.git ~/critical-rhino
@@ -77,6 +81,9 @@ It's a standard colorscheme plugin. With [lazy.nvim](https://github.com/folke/la
   end,
 },
 ```
+
+To update only when there's a new [release](https://github.com/matthewaburton/critical-rhino/releases),
+add `version = "*"` to the spec.
 
 `critical-rhino` follows `'background'`, so `:set background=light` switches to the
 light variant; `critical-rhino-dark` and `critical-rhino-light` pick one. With
@@ -106,18 +113,21 @@ can't reach:
 
 ### VS Code and Cursor
 
-The extension isn't on the Marketplace yet. Build it from the clone (this needs
-Python 3.11 or later and nothing else) and install it into every copy of VS Code and
-Cursor on your machine:
+The extension isn't on the Marketplace yet. Download `critical-rhino-<version>.vsix`
+from the [latest release](https://github.com/matthewaburton/critical-rhino/releases/latest)
+and install it with **Extensions: Install from VSIX...**, or from a terminal:
 
 ```sh
-cd ~/critical-rhino
-make vscode:install
+code --install-extension critical-rhino-<version>.vsix
+cursor --install-extension critical-rhino-<version>.vsix
 ```
 
-`make vscode:package` only writes `build/critical-rhino-0.1.0.vsix`, which you can
-install with **Extensions: Install from VSIX...**. Then pick **Critical Rhino Dark**
-or **Critical Rhino Light** with **Preferences: Color Theme**, or follow the desktop:
+Or build it from the clone (this needs Python 3.11 or later and nothing else) and
+install it into every copy of VS Code and Cursor on your machine with
+`make vscode:install`; `make vscode:package` only writes the `.vsix` into `build/`.
+
+Then pick **Critical Rhino Dark** or **Critical Rhino Light** with
+**Preferences: Color Theme**, or follow the desktop:
 
 ```jsonc
 // settings.json
@@ -215,10 +225,15 @@ need Python 3.11 or later and use only the standard library. Linting uses
 make                 # list every command
 make doctor          # check Python, uv, ruff and the tools the themes are for
 make derive          # after changing a rule in palette.toml: refresh the derived hex values
-make build           # regenerate every theme, the logo and build/preview.html, a showcase page
+make build           # regenerate every theme, the logo and the site
 make check           # every check, and lint; run before committing
 make screenshots     # after changing colors: retake the screenshots on this page (slow)
+make site            # just the site: open build/site/index.html
 ```
+
+Releases are annotated `vX.Y.Z` tags. Pushing one runs the checks again, publishes
+the release with the VS Code extension attached, and deploys the site;
+[AGENTS.md](AGENTS.md) has the steps and the numbering rules.
 
 | Path | What it is |
 |---|---|
@@ -230,8 +245,10 @@ make screenshots     # after changing colors: retake the screenshots on this pag
 | `scripts/build_<tool>.py` | Build one theme and check every pair in it |
 | `scripts/audit_<target>.py` | Run the real apps and measure what they draw |
 | `scripts/screenshots.py` | Retake the screenshots on this page from the current themes |
-| `scripts/preview.py`, `logo.py`, `term_test.py` | The showcase page, the logo, and a terminal color test |
+| `scripts/preview.py`, `logo.py`, `term_test.py` | The site, the logo, and a terminal color test |
 | `docs/` | [Design notes](docs/design.md) and the images on this page |
+| `AGENTS.md` | Guidance for AI agents working here (`CLAUDE.md` links to it), and the release steps |
+| `.github/workflows/` | `make check` on every push; releases and the site on every tag |
 
 ## License
 
