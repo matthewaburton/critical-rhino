@@ -391,6 +391,11 @@ every UI and terminal role, and `rhino.view(data, "light")` gives the merged pal
   and key hints at 50%. In dark these read; in light the 62% tier is 3.96:1 and the
   key hints 2.9:1, and no theme color can lift them. Its "Cursor Tab" status item is
   dimmed while the feature is off. The audit lists these but doesn't fail on them.
+- **The store listing comes from the package.** The Marketplace and Open VSX build the
+  extension's page from the `.vsix`: its icon (the logo's dark tile, see
+  [Logo](#logo)), a banner in the dark background, and `extras/vscode/README.md`,
+  which shows the README's VS Code screenshots from the release's tag, so each
+  version's listing shows that version.
 
 ## Starship, fzf, lazygit and tmux
 
@@ -496,5 +501,4 @@ The VS Code extension's icon, `extras/vscode/icon.png`, is the dark tile at 256 
 cream on near-black on its own ground, so it holds on the stores' light and dark
 pages, and they refuse SVG icons. `make vscode` rasterizes the same outlines in plain
 arithmetic, 16 samples down each pixel with exact coverage across it, so every
-machine draws the same pixels; `make vscode:check` compares them. The store listing's
-banner is the dark background.
+machine draws the same pixels; `make vscode:check` compares them.

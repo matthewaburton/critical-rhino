@@ -1,6 +1,6 @@
 """Build the VS Code and Cursor theme extension from palette.toml.
 
-    python3 scripts/build_vscode.py            # write extras/vscode/: package.json, icon.png, themes/*.json
+    python3 scripts/build_vscode.py            # write extras/vscode/: package.json, README.md, icon.png, themes/*.json
     python3 scripts/build_vscode.py --check    # fail (exit 1) if they're stale or a pairing is unreadable
     python3 scripts/build_vscode.py --report   # print every measured pair, worst first
     python3 scripts/build_vscode.py --package  # also write build/critical-rhino-<version>.vsix
@@ -1350,6 +1350,49 @@ def package_json(variants: list[str], banner: str) -> dict:
     }
 
 
+def readme() -> str:
+    """The store listing's page. Its pictures are the README's, from this version's tag: the
+    stores need https image links, and each version's listing shows that version."""
+    images = f"{rhino.REPO_URL.replace('github.com', 'raw.githubusercontent.com')}/v{rhino.VERSION}/docs/images"
+    return f"""# Critical Rhino
+
+A warm color theme in dark and light: cream text on near-black, or near-black on
+cream, with orange keywords, red strings, green comments, purple numbers and blue
+types. Every text color the theme sets is measured on every surface the editor draws
+it on, at 4.5:1 for text and 3:1 for dim text and marks.
+
+![Python in VS Code, dark]({images}/vscode-dark.png)
+
+![Python in VS Code, light]({images}/vscode-light.png)
+
+## Use it
+
+Pick **Critical Rhino Dark** or **Critical Rhino Light** with **Preferences: Color
+Theme**, or follow the desktop:
+
+```jsonc
+// settings.json
+"window.autoDetectColorScheme": true,
+"workbench.preferredDarkColorTheme": "Critical Rhino Dark",
+"workbench.preferredLightColorTheme": "Critical Rhino Light"
+```
+
+VS Code lifts any terminal color below 4.5:1 as it draws
+(`terminal.integrated.minimumContrastRatio`). If you turn that off to see the theme's
+own terminal colors, also turn off `terminal.integrated.drawBoldTextInBrightColors`
+for the light theme, where bright white is the background.
+
+## The rest of the scheme
+
+The same palette themes Neovim, Ghostty, starship, fzf, lazygit and tmux. The
+[site]({rhino.SITE_URL}) shows every color and the role it plays, and the
+[repository]({rhino.REPO_URL}) has the other themes, the design notes and the
+[release notes]({rhino.REPO_URL}/releases).
+
+Found a color that doesn't read? [Open an issue]({rhino.REPO_URL}/issues).
+"""
+
+
 def outputs(data: dict) -> tuple[dict[Path, str | bytes], list[str], dict[str, Theme]]:
     files, errors, themes = {}, [], {}
     names = rhino.appearances(data)
@@ -1363,6 +1406,7 @@ def outputs(data: dict) -> tuple[dict[Path, str | bytes], list[str], dict[str, T
     ink, accent, ground = logo.palette_colors(data, ICON_APPEARANCE)
     files[EXT_DIR / ICON] = logo.icon_png(ink, accent, ground)
     files[EXT_DIR / "package.json"] = json.dumps(package_json(names, ground), indent=2) + "\n"
+    files[EXT_DIR / "README.md"] = readme()
     return files, errors, themes
 
 
@@ -1389,13 +1433,19 @@ def vsix_manifest(meta: dict, packaged: list[str]) -> str:
     def prop(key: str, value: str) -> str:
         return f'      <Property Id="{key}" Value="{escape(value)}" />\n'
 
+    # Without code to run, an extension also works in VS Code for the Web (vscode.dev), and the
+    # Marketplace offers it there.
+    web = "main" not in meta
+    tags = meta.get("keywords", []) + (["__web_extension"] if web else [])
     props = [("Microsoft.VisualStudio.Code.Engine", meta["engines"]["vscode"]),
              ("Microsoft.VisualStudio.Code.ExtensionDependencies", ""),
              ("Microsoft.VisualStudio.Code.ExtensionPack", ""),
-             ("Microsoft.VisualStudio.Code.ExtensionKind", "ui,workspace"),
-             ("Microsoft.VisualStudio.Code.LocalizedLanguages", "")]
+             ("Microsoft.VisualStudio.Code.ExtensionKind", "ui,workspace,web" if web else "workspace"),
+             ("Microsoft.VisualStudio.Code.LocalizedLanguages", ""),
+             ("Microsoft.VisualStudio.Code.EnabledApiProposals", "")]
     if repo := meta.get("repository", {}).get("url"):
-        props += [(f"Microsoft.VisualStudio.Services.Links.{k}", repo) for k in ("Source", "Getstarted", "Repository")]
+        host = "GitHub" if repo.startswith("https://github.com/") else "Repository"
+        props += [(f"Microsoft.VisualStudio.Services.Links.{k}", repo) for k in ("Source", "Getstarted", host)]
     if bugs := meta.get("bugs", {}).get("url"):
         props.append(("Microsoft.VisualStudio.Services.Links.Support", bugs))
     if homepage := meta.get("homepage"):
@@ -1421,7 +1471,7 @@ def vsix_manifest(meta: dict, packaged: list[str]) -> str:
             f'Publisher="{escape(meta["publisher"])}" />\n'
             f'    <DisplayName>{escape(meta.get("displayName", meta["name"]))}</DisplayName>\n'
             f'    <Description xml:space="preserve">{escape(meta.get("description", ""))}</Description>\n'
-            f'    <Tags>{escape(",".join(meta.get("keywords", [])))}</Tags>\n'
+            f'    <Tags>{escape(",".join(tags))}</Tags>\n'
             f'    <Categories>{escape(",".join(meta.get("categories", [])))}</Categories>\n'
             '    <GalleryFlags>Public</GalleryFlags>\n'
             '    <Properties>\n' + "".join(prop(k, v) for k, v in props) + '    </Properties>\n'

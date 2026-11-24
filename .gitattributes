@@ -5,6 +5,7 @@ lua/critical-rhino/light.lua   linguist-generated
 extras/ghostty/*               linguist-generated
 extras/vscode/package.json     linguist-generated
 extras/vscode/icon.png         linguist-generated
+extras/vscode/README.md        linguist-generated
 extras/vscode/themes/*         linguist-generated
 extras/starship/*              linguist-generated
 extras/fzf/*                   linguist-generated
