@@ -1,0 +1,173 @@
+"""Build the starship theme from palette.toml.
+
+    python3 scripts/build_starship.py           # write extras/starship/critical-rhino.toml
+    python3 scripts/build_starship.py --check   # fail (exit 1) if it's stale or a pairing is unreadable
+    python3 scripts/build_starship.py --report  # print every measured pair
+
+Prompts are printed in the terminal's 16 colors, so they switch with the terminal
+between dark and light. The theme changes only the default styles that don't: a few
+fixed colors (xterm 208, #75AADB, ...) and bright colors, which in light are 3:1
+accents. The check reads every style in the installed starship's defaults
+(`starship print-config --default`) with the theme's on top, so a module a new
+starship adds is checked too.
+
+Each style is measured the way Ghostty draws it (build_ghostty.Terminal): bold in
+the bright colors where the theme sets bold-color = bright, dimmed text at the
+theme's faint-opacity under both blends, inverted text with its colors swapped.
+"""
+
+from __future__ import annotations
+
+import re
+import shutil
+import subprocess
+import sys
+import tomllib
+from pathlib import Path
+
+import build_ghostty
+import rhino
+from build_ghostty import Pair
+
+THEME_FILE = rhino.ROOT / "extras" / "starship" / "critical-rhino.toml"
+
+# Default styles the theme replaces, by module, with why. Everything else is left to
+# starship's defaults, which already use the terminal's colors.
+STYLES = {
+    # Fixed colors, which stay the same in dark and light: the nearest of the 16.
+    "c": ("bold green", "149, a fixed yellow-green (2.0:1 in light)"),
+    "cpp": ("bold green", "149"),
+    "perl": ("bold green", "149"),
+    "raku": ("bold green", "149"),
+    "package": ("bold yellow", "208, a fixed orange (2.1:1 in light)"),
+    "mojo": ("bold yellow", "208"),
+    "haxe": ("bold red", "202, a fixed orange-red"),
+    "swift": ("bold red", "202"),
+    "php": ("bold purple", "147, a fixed lavender"),
+    "terraform": ("bold purple", "105"),
+    "gleam": ("bold purple", "#FFAFF3"),
+    "quarto": ("bold blue", "#75AADB"),
+    "typst": ("bold cyan", "#0093A7"),
+    # Bright colors are 3:1 accents in light. In dark, bold already draws the bright color.
+    "direnv": ("bold yellow", "bright-yellow"),
+    "gradle": ("bold cyan", "bright-cyan"),
+    "odin": ("bold blue", "bright-blue"),
+}
+COLORS = {"black": 0, "red": 1, "green": 2, "yellow": 3, "blue": 4, "purple": 5, "cyan": 6, "white": 7}
+WORDS = {"italic", "underline", "blink", "hidden", "strikethrough", "none"}
+LITERAL_STYLE = re.compile(r"\]\(([^)$][^)]*)\)")  # [text](bold red) in a format string
+
+
+def color(token: str) -> int | str | None:
+    """A starship color as a palette index or hex; raises ValueError for anything else."""
+    bright = token.startswith("bright-")
+    name = token.removeprefix("bright-")
+    if name in COLORS:
+        return COLORS[name] + 8 * bright
+    if token.isdigit() and int(token) < 256:
+        return int(token)
+    if re.fullmatch(r"#[0-9a-f]{6}", token):
+        return token
+    if token in ("prev_fg", "prev_bg"):
+        return None
+    raise ValueError(token)
+
+
+def ink(style: str) -> tuple[dict, list[str]]:
+    """Terminal.draw arguments for a starship style, and any colors that aren't one of the 16."""
+    drawn: dict = {}
+    fixed = []
+    for token in style.lower().split():
+        if token == "bold":
+            drawn["bold"] = True
+        elif token == "dimmed":
+            drawn["faint"] = True
+        elif token == "inverted":
+            drawn["reverse"] = True
+        elif token not in WORDS:
+            where, _, name = token.rpartition(":")
+            c = color(name)
+            if isinstance(c, str) or (isinstance(c, int) and c > 15):
+                fixed.append(name)
+            drawn["bg" if where == "bg" else "fg"] = c
+    return drawn, fixed
+
+
+def styles(config: dict) -> dict[str, str]:
+    """Every style in a starship config: {"package.style": "208 bold", "character.success_symbol": ...}."""
+    found = {}
+    for module, table in config.items():
+        if not isinstance(table, dict):
+            continue
+        for key, value in table.items():
+            if not isinstance(value, str):
+                continue
+            if "style" in key:
+                found[f"{module}.{key}"] = value
+            elif "format" in key or key.endswith("symbol"):
+                for i, literal in enumerate(LITERAL_STYLE.findall(value)):
+                    found[f"{module}.{key}" + (f"[{i}]" if i else "")] = literal
+    return found
+
+
+def defaults() -> dict | None:
+    exe = shutil.which("starship")
+    if not exe:
+        return None
+    out = subprocess.run([exe, "print-config", "--default"], capture_output=True, text=True, check=True)
+    return tomllib.loads(out.stdout)
+
+
+def theme_file() -> str:
+    lines = [
+        "# Critical Rhino for starship.",
+        "# Generated by scripts/build_starship.py; don't edit by hand.",
+        "#",
+        "# Starship prints in the terminal's 16 colors, so the prompt switches with the terminal",
+        "# between dark and light. These are the only default styles that don't: fixed colors,",
+        "# which stay the same in both, and bright colors, which in light are 3:1 accents.",
+        "# Bold text in dark is drawn in the bright colors anyway.",
+        "#",
+        "# Point starship at it from ~/.bashrc:",
+        "#   export STARSHIP_CONFIG=~/path/to/critical-rhino/extras/starship/critical-rhino.toml",
+        "# Starship reads a single config file, so if you have your own, copy these tables into it.",
+        "",
+        "\"$schema\" = \"https://starship.rs/config-schema.json\"",
+    ]
+    for module, (style, was) in STYLES.items():
+        lines += ["", f"[{module}]", f'style = "{style}"  # was {was}']
+    return "\n".join(lines) + "\n"
+
+
+def pairs(config: dict | None) -> tuple[list[Pair], list[str]]:
+    """Every style starship draws with this theme, and errors for styles that won't follow the terminal."""
+    config = {k: dict(v) if isinstance(v, dict) else v for k, v in (config or {}).items()}
+    for module, (style, _) in STYLES.items():
+        config.setdefault(module, {})["style"] = style
+    found, errors = [], []
+    for where, style in sorted(styles(config).items()):
+        try:
+            drawn, fixed = ink(style)
+        except ValueError as e:
+            errors.append(f"starship {where} = {style!r}: unknown color {e}")
+            continue
+        if fixed:
+            errors.append(f"starship {where} = {style!r} uses {', '.join(fixed)}, which won't change with the "
+                          "terminal; add it to STYLES")
+        # dimmed text is drawn faint (Ghostty keeps it at 3:1); the fill between left and right is decoration
+        minimum = rhino.DIM_MIN if drawn.get("faint") or where.startswith("fill.") else rhino.TEXT_MIN
+        found.append(Pair(f"{where} ({style})", drawn, minimum))
+    return found, errors
+
+
+def outputs(data: dict) -> tuple[dict[Path, str], list[str], list[str]]:
+    config = defaults()
+    found, errors = pairs(config)
+    e, report = build_ghostty.measure_variants(data, found)
+    if config is None:
+        report.insert(0, "(starship isn't installed: checked only the theme's own styles)")
+    return {THEME_FILE: theme_file()}, errors + e, report
+
+
+if __name__ == "__main__":
+    sys.exit(build_ghostty.tool_main("starship", outputs))

@@ -1,0 +1,13 @@
+# Generated from palette.toml by the scripts in scripts/ (make build). Marked so
+# GitHub collapses them in diffs and leaves them out of the language stats.
+lua/critical-rhino/dark.lua    linguist-generated
+lua/critical-rhino/light.lua   linguist-generated
+extras/ghostty/*               linguist-generated
+extras/vscode/package.json     linguist-generated
+extras/vscode/themes/*         linguist-generated
+extras/starship/*              linguist-generated
+extras/fzf/*                   linguist-generated
+extras/lazygit/*               linguist-generated
+extras/tmux/*                  linguist-generated
+docs/images/logo-*.svg         linguist-generated
+docs/images/icon-*.svg         linguist-generated

@@ -1,0 +1,9 @@
+{
+  "name": "rhino-audit-scenes",
+  "displayName": "Critical Rhino audit: scene driver",
+  "version": "0.0.1",
+  "publisher": "local",
+  "engines": { "vscode": "^1.90.0" },
+  "main": "./extension.js",
+  "activationEvents": ["onStartupFinished"]
+}

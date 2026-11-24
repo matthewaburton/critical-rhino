@@ -1,0 +1,409 @@
+# Critical Rhino — palette and color roles
+#
+# This file is the single source of truth. Every theme in the repo is generated
+# from it by the scripts in scripts/; none copies a hex value by hand.
+#
+# References: a role value is either
+#   - a palette name:            "red", "readable.red", "terminal.cyan"
+#   - a literal hex color:       "#303030"
+#   - a color plus alpha:        { color = "blue", alpha = 0.44 }
+#
+# Run `make check` after editing to validate references, measure contrast and
+# confirm the generated themes are current.
+
+[meta]
+name = "Critical Rhino"
+appearance = "dark"
+
+# ---------------------------------------------------------------------------
+# Base palette: the scheme's named colors. Not every one reads as text on every
+# surface; the versions drawn as text are derived in [colors.readable].
+# ---------------------------------------------------------------------------
+[colors]
+black         = "#202020"
+blue          = "#59759A"
+gray_dark     = "#4D4D4D"
+gray_light    = "#808080"
+green         = "#76A041"
+loden         = "#3D3A39"  # warm dark gray: the raised surfaces, and the tint of every warm gray
+orange        = "#E86F41"
+purple        = "#9C618A"
+red           = "#AE3C38"
+red_muted     = "#AC5A58"
+white         = "#F7EEDC"
+yellow        = "#FDD172"
+blue_accent_1 = "#2F65CA"
+blue_accent_2 = "#0D293E"
+gray_accent_1 = "#3C3F41"
+gray_accent_2 = "#2D2D2D"
+
+# ---------------------------------------------------------------------------
+# Derived colors. Each is a rule applied to a base color, plus the `hex` the
+# rule produces. After editing a rule, run `python3 scripts/derive.py` to
+# refresh the hex values; check.py fails if any are stale.
+#
+#   text   keep chroma, then move lightness away from the background only until
+#          the color reaches 4.5:1 on every surface code sits on (background,
+#          current line, selection, diff lines, widgets). Colors that already
+#          pass come out unchanged. Optional: hue_shift (degrees), min (contrast),
+#          exact (true: a color that already passes moves toward the background
+#          instead, as far as it can while still passing, so it lands on min).
+#   tint   keep lightness; take the hue and tint strength (chroma / lightness)
+#          of `by`.
+#   bright the terminal's bright colors in dark: +#333333 per channel.
+#   fill   keep hue and chroma, then move lightness away from `text` only until
+#          `text` reaches 4.5:1 on the fill. Optional: min (contrast).
+#   wash   an opaque color in the hue of `from` at `chroma`, as light as `from`
+#          at `alpha` over the background. A translucent blue over cream cancels
+#          to gray; a wash keeps the lightness and the blue.
+# ---------------------------------------------------------------------------
+
+# Readable colors: every color drawn as code text. Syntax roles use only these.
+# Once red is light enough to read it matches orange, so the two are nudged
+# apart in hue (red toward rose, orange toward amber).
+[colors.readable]
+foreground    = { rule = "text", from = "white", hex = "#F7EEDC" }
+red           = { rule = "text", from = "red", hue_shift = -6, hex = "#E66E72" }
+orange        = { rule = "text", from = "orange", hue_shift = 11, hex = "#E37523" }
+yellow        = { rule = "text", from = "yellow", hex = "#FDD172" }
+green         = { rule = "text", from = "green", hex = "#76A041" }
+purple        = { rule = "text", from = "purple", hex = "#BD80AA" }
+blue          = { rule = "text", from = "blue", hex = "#7895BC" }
+blue_accent_1 = { rule = "text", from = "blue_accent_1", hex = "#5791FA" }
+cyan          = { rule = "text", from = "terminal.cyan", hex = "#2AA497" }  # terminal cyan's text tone
+
+# Warm versions of the base palette's neutral grays, tinted like Loden. Used for UI
+# surfaces so the workbench matches the cream text and Loden.
+[colors.warm]
+gray_accent_2 = { rule = "tint", from = "gray_accent_2", by = "loden", hex = "#2F2C2B" }
+gray_dark     = { rule = "tint", from = "gray_dark", by = "loden", hex = "#504C4B" }
+gray_light    = { rule = "tint", from = "gray_light", by = "loden", hex = "#847F7D" }
+
+# Colors the terminal palette needs that the base palette doesn't define.
+[colors.terminal]
+black          = { rule = "tint", from = "#303030", by = "loden", hex = "#322F2E" }  # a lifted black, warmed
+cyan           = "#13978A"  # derived once from the palette's hue and chroma pattern; see docs/design.md
+bright_red     = { rule = "bright", from = "readable.red", hex = "#FFA1A5" }
+bright_green   = { rule = "bright", from = "green", hex = "#A9D374" }
+bright_yellow  = { rule = "bright", from = "yellow", hex = "#FFFFA5" }
+bright_blue    = { rule = "bright", from = "readable.blue", hex = "#ABC8EF" }
+bright_magenta = { rule = "bright", from = "readable.purple", hex = "#F0B3DD" }
+bright_cyan    = { rule = "bright", from = "readable.cyan", hex = "#5DD7CA" }
+# Terminal grays: white is secondary text (4.5:1); bright black is the dim gray
+# shells use for suggestions and timestamps (3:1).
+white          = { rule = "text", from = "warm.gray_light", hex = "#979290" }
+bright_black   = { rule = "text", from = "warm.gray_dark", min = 3.0, hex = "#797473" }
+
+# Fills that carry cream text (status bar, buttons, list filter box), darkened
+# only as far as the text needs to reach 4.5:1. The same in both variants.
+[colors.fill]
+blue      = { rule = "fill", from = "blue", text = "white", hex = "#536E93" }
+purple    = { rule = "fill", from = "purple", text = "white", hex = "#945982" }
+red_muted = { rule = "fill", from = "red_muted", text = "white", hex = "#A65553" }
+
+# Diff-mode surfaces for changed lines and the changed text inside them. As
+# light as the translucent mix, which keeps them no lighter than the widget
+# surface so no text color moves, but with enough chroma to show the hue.
+# Changed text is yellow, not a deeper blue, so it can't pass for a selection.
+[colors.wash]
+changed      = { rule = "wash", from = "blue", alpha = 0.15, chroma = 0.03, hex = "#232D3B" }
+changed_text = { rule = "wash", from = "yellow", alpha = 0.07, chroma = 0.045, hex = "#372A0F" }
+
+# Dimmed gutter colors for staged changes: the readable tones at exactly 3:1, so
+# staged marks recede next to unstaged ones but stay visible.
+[colors.dim]
+green = { rule = "text", from = "readable.green", min = 3.0, exact = true, hex = "#58811E" }
+blue  = { rule = "text", from = "readable.blue", min = 3.0, exact = true, hex = "#5B779C" }
+red   = { rule = "text", from = "readable.red", min = 3.0, exact = true, hex = "#C34F55" }
+
+# ---------------------------------------------------------------------------
+# Syntax roles: what each kind of code is drawn in, shared by both variants.
+# Anything not listed here is `text`.
+# ---------------------------------------------------------------------------
+[syntax]
+text          = "readable.foreground"  # identifiers, function names, parameters, properties, tags, attribute names, operators
+comment       = "readable.green"   # line and block comments
+doc_comment   = "readable.green"   # doc comments and docstrings
+doc_tag       = "readable.yellow"  # @param, @return and other tags inside doc comments
+todo          = "readable.green"   # TODO and FIXME markers
+keyword       = "readable.orange"  # control flow, storage, modifiers, true/false/null/None, preprocessor directives, HTML entities
+string        = "readable.red"     # strings, JSON values, template literals, HTML attribute values, CSS property values
+string_escape = "readable.blue"    # \n, \t and other escapes inside strings
+regex         = "readable.foreground"
+number        = "readable.purple"  # numeric literals
+constant      = "readable.foreground"  # named constants, enum members, static and final fields (set apart by italics)
+type          = "readable.blue"    # classes, interfaces, enums, structs, namespaces, type parameters
+builtin       = "readable.blue"    # built-in functions and types, self/cls, standard-library calls
+decorator     = "readable.yellow"  # decorators, annotations, labels
+interpolation = "readable.orange"  # ${ } delimiters and other embedded-code punctuation
+invalid       = "readable.red"     # invalid escapes, unresolved references
+
+# Markup (Markdown, diffs)
+heading       = "readable.foreground"
+bold          = "readable.purple"
+italic        = "readable.orange"
+link_text     = "readable.blue"
+link_url      = "readable.orange"
+quote         = "readable.green"
+inline_code   = "readable.red"
+diff_header   = "readable.blue"
+diff_inserted = "readable.green"
+diff_deleted  = "readable.red"
+
+# Font styles for syntax roles: any of "bold", "italic", "underline",
+# "strikethrough". Roles not listed are plain. Comments stay upright; italics
+# mark documentation and constants.
+[styles]
+doc_comment = ["italic"]
+todo        = ["bold", "italic"]
+constant    = ["italic"]          # static and final fields, enum members
+invalid     = ["strikethrough"]   # invalid string escapes, unresolved references
+heading     = ["bold"]
+bold        = ["bold"]
+italic      = ["italic"]
+link_text   = ["underline"]
+
+# ---------------------------------------------------------------------------
+# UI roles: the editor and workbench around the code. Surfaces use the warm
+# grays; the editor background is Black.
+# ---------------------------------------------------------------------------
+[ui]
+background       = "black"           # editor, activity bar, minimap, terminal
+foreground       = "white"
+surface          = "warm.gray_accent_2"  # side bar, panel, inactive tabs, widgets
+surface_raised   = "loden"           # title bar, inputs, dropdowns
+border           = "warm.gray_dark"
+badge            = "warm.gray_dark"
+badge_foreground = "white"
+muted_foreground = { color = "white", alpha = 0.59 }  # inactive tab labels, placeholder text; just enough for 4.5:1 in inputs
+line_numbers     = { color = "yellow", alpha = 0.57 }  # dimmed yellow, still 4.5:1
+line_number_active = "yellow"        # the current line's number
+current_line     = { color = "loden", alpha = 0.40 }  # 40% Loden keeps text at 4.5:1
+ruler            = { color = "yellow", alpha = 0.40 }  # the print margin, dimmed yellow
+bracket_match    = "white"           # drawn bold and underlined where the editor allows
+accent           = "fill.blue"       # status bar, activity-bar icons, primary buttons
+accent_foreground = "white"          # status bar and button text
+selection        = "blue_accent_1"   # focused list item, menu selection
+selection_foreground = "white"       # text on the focused list item
+focus            = "readable.blue_accent_1"  # focus rings, progress bars, active tab and panel marks: 3:1 on every surface (Blue Accent 1 itself is 2.98:1)
+hover            = { color = "#000000", alpha = 0.25 }  # rows and tabs under the pointer: darker, so colored names keep 4.5:1
+selection_soft   = "blue_accent_2"   # inactive list focus, suggest selection, peek view
+editor_selection = "blue_accent_2"   # navy: visible by hue, keeps text at 4.5:1 (a translucent blue would drop it to 3.1:1)
+link             = "readable.blue_accent_1"
+match_highlight  = "readable.blue_accent_1"  # matched characters in lists and suggestions
+match_highlight_selected = "white"   # matched characters in the selected row (Blue Accent 1); bold sets them apart
+filter_widget    = "fill.red_muted"  # list filter box
+filter_widget_foreground = "white"
+
+# Interface text uses the readable tones, like code: these color file names,
+# problem lists and messages as well as squiggles and icons.
+error            = "readable.red"
+warning          = "readable.yellow"
+info             = "readable.blue"
+hint             = "readable.cyan"
+dim_foreground   = "terminal.bright_black"  # ghost text, backdrops: 3:1, like shell suggestions
+
+git_added        = "readable.green"
+git_modified     = "readable.yellow"
+git_deleted      = "readable.red"
+git_conflict     = "readable.orange"
+gutter_added     = "readable.green"  # gutter marks are meaningful graphics, so 3:1 (base red is 2.7:1)
+gutter_modified  = "readable.blue"
+gutter_deleted   = "readable.red"
+gutter_staged_added    = "dim.green"  # staged changes: the gutter colors at 3:1
+gutter_staged_modified = "dim.blue"
+gutter_staged_deleted  = "dim.red"
+diff_inserted_bg = { color = "green", alpha = 0.08 }  # faint enough to keep text at 4.5:1
+diff_removed_bg  = { color = "red", alpha = 0.18 }
+diff_changed_bg  = "wash.changed"      # changed lines in side-by-side diffs
+diff_text_bg     = "wash.changed_text" # the changed text inside them
+word_highlight   = "warm.gray_accent_2"  # other uses of the symbol under the cursor
+
+# Search matches replace the text color with black on a fill, so matches stand out
+# from selections and diff lines. The fills also read against every code surface,
+# so an editor can draw a match in reverse video (Neovim does in dark, where black
+# text would vanish under the navy selection): yellow already does, and the current
+# match uses the readable orange.
+search           = "yellow"
+search_foreground = "black"
+search_current   = "readable.orange"
+search_current_foreground = "black"
+
+status_debugging = "orange"
+status_debugging_foreground = "black"
+status_no_folder = "fill.purple"
+status_no_folder_foreground = "white"
+status_remote    = "green"
+status_remote_foreground = "black"
+
+# ---------------------------------------------------------------------------
+# Terminal ANSI palette: the readable colors, a derived cyan and warm grays.
+# Most programs print in the normal colors (git deletions and
+# errors in red, `ls` folders in blue), so the six colored normals reach 4.5:1
+# and the bright row, built from them, stays lighter. White is secondary text
+# (4.5:1) and bright black is dim text such as shell suggestions (3:1). Black and
+# bright white are exempt: in each variant one is the text color and the other
+# nearly the background. The cursor stands out at 3:1 against everything it's
+# drawn over, including an editor's current line, selection and popups, and the
+# character under a block cursor reads on it at 4.5:1.
+# ---------------------------------------------------------------------------
+[terminal]
+background     = "black"
+foreground     = "white"
+cursor         = "readable.blue"    # Blue Accent 1 is 2.98:1 on the background; black text reads on this
+selection      = "blue_accent_2"    # navy, like the editor selection: selected text keeps its colors at 4.5:1
+
+black          = "terminal.black"
+red            = "readable.red"     # base red is 2.72:1
+green          = "readable.green"
+yellow         = "readable.yellow"
+blue           = "readable.blue"    # base blue is 3.44:1
+magenta        = "readable.purple"  # base purple is 3.48:1
+cyan           = "readable.cyan"
+white          = "terminal.white"
+
+bright_black   = "terminal.bright_black"
+bright_red     = "terminal.bright_red"
+bright_green   = "terminal.bright_green"
+bright_yellow  = "terminal.bright_yellow"
+bright_blue    = "terminal.bright_blue"
+bright_magenta = "terminal.bright_magenta"
+bright_cyan    = "terminal.bright_cyan"
+bright_white   = "white"
+
+# ===========================================================================
+# Light variant. Everything above is the dark palette; this section overrides
+# only what changes. Syntax roles and font styles are shared, so both variants
+# mean the same thing. Against the light background the text rule darkens
+# instead of lightening. check.py requires every UI and terminal role here.
+# ===========================================================================
+
+# Darkening squeezes red, orange and yellow together, so the light nudges
+# differ from dark: red goes further toward crimson and orange less far toward
+# amber, which would run it into the darkened yellow. These are the smallest
+# nudges that keep every pair at least 0.08 apart.
+[light.colors.readable]
+foreground    = { rule = "text", from = "black", hex = "#202020" }
+red           = { rule = "text", from = "red", hue_shift = -12, hex = "#A7354A" }
+orange        = { rule = "text", from = "orange", hue_shift = 6, hex = "#9F4200" }
+yellow        = { rule = "text", from = "yellow", hex = "#795901" }
+green         = { rule = "text", from = "green", hex = "#446902" }
+purple        = { rule = "text", from = "purple", hex = "#844B73" }
+blue          = { rule = "text", from = "blue", hex = "#456084" }
+blue_accent_1 = { rule = "text", from = "blue_accent_1", hex = "#2459BD" }
+cyan          = { rule = "text", from = "terminal.cyan", hex = "#016A60" }  # light terminal cyan
+
+# Selections. Blue Accent 1 at 16% over the cream comes out a flat gray, so the
+# selections are washes: that lightness, in Blue Accent 1's hue. The paler one
+# matches 12%, for inactive selections.
+[light.colors.wash]
+blue      = { rule = "wash", from = "blue_accent_1", alpha = 0.16, chroma = 0.035, hex = "#CBD9F0" }
+pale_blue = { rule = "wash", from = "blue_accent_1", alpha = 0.12, chroma = 0.02, hex = "#D7DFEC" }
+changed      = { rule = "wash", from = "blue", alpha = 0.10, chroma = 0.025, hex = "#D8E4F4" }
+changed_text = { rule = "wash", from = "yellow", alpha = 0.35, chroma = 0.05, hex = "#F6E5C2" }
+
+[light.colors.dim]
+green = { rule = "text", from = "readable.green", min = 3.0, exact = true, hex = "#5F852B" }
+blue  = { rule = "text", from = "readable.blue", min = 3.0, exact = true, hex = "#607CA2" }
+red   = { rule = "text", from = "readable.red", min = 3.0, exact = true, hex = "#C85365" }
+
+[light.ui]
+background       = "white"           # the cream
+foreground       = "black"
+surface          = { color = "loden", alpha = 0.07 }  # side bar, inactive tabs, widgets
+surface_raised   = { color = "loden", alpha = 0.13 }  # title bar, inputs, dropdowns
+border           = { color = "loden", alpha = 0.30 }
+badge            = { color = "loden", alpha = 0.30 }
+badge_foreground = "black"
+muted_foreground = { color = "black", alpha = 0.70 }  # inactive tab labels, placeholders, inlay hints; 4.5:1 in inputs and selections
+line_numbers     = { color = "readable.yellow", alpha = 0.90 }  # ochre; 90% is the least that reaches 4.5:1
+line_number_active = "black"         # stands out from the ochre numbers
+current_line     = { color = "loden", alpha = 0.08 }
+ruler            = { color = "readable.yellow", alpha = 0.35 }
+bracket_match    = "black"
+accent           = "fill.blue"
+accent_foreground = "white"
+selection        = "blue_accent_1"
+selection_foreground = "white"
+focus            = "readable.blue_accent_1"
+hover            = { color = "#FFFFFF", alpha = 0.50 }  # lighter in light, for the same reason
+selection_soft   = "wash.pale_blue"
+editor_selection = "wash.blue"
+link             = "readable.blue_accent_1"
+match_highlight  = "readable.blue_accent_1"
+match_highlight_selected = "white"
+filter_widget    = "fill.red_muted"
+filter_widget_foreground = "white"
+
+error            = "readable.red"
+warning          = "readable.yellow"
+info             = "readable.blue"
+hint             = "readable.cyan"
+dim_foreground   = "terminal.bright_black"
+
+git_added        = "readable.green"
+git_modified     = "readable.yellow"
+git_deleted      = "readable.red"
+git_conflict     = "readable.orange"
+gutter_added     = "readable.green"
+gutter_modified  = "readable.blue"
+gutter_deleted   = "readable.red"
+gutter_staged_added    = "dim.green"
+gutter_staged_modified = "dim.blue"
+gutter_staged_deleted  = "dim.red"
+diff_inserted_bg = { color = "green", alpha = 0.14 }
+diff_removed_bg  = { color = "red", alpha = 0.10 }
+diff_changed_bg  = "wash.changed"
+diff_text_bg     = "wash.changed_text"
+word_highlight   = { color = "loden", alpha = 0.07 }
+
+search           = "yellow"
+search_foreground = "black"
+search_current   = "orange"
+search_current_foreground = "black"
+
+status_debugging = "orange"
+status_debugging_foreground = "black"
+status_no_folder = "fill.purple"
+status_no_folder_foreground = "white"
+status_remote    = "green"
+status_remote_foreground = "black"
+
+# Light bright colors: the base colors at exactly 3:1, so every bright sits the
+# same step lighter than its normal color (4.5:1), the way dark brights do.
+# `exact` lightens red, blue and purple, which already pass 3:1.
+[light.colors.terminal]
+bright_red     = { rule = "text", from = "red", min = 3.0, exact = true, hex = "#C9554F" }
+bright_green   = { rule = "text", from = "green", min = 3.0, exact = true, hex = "#5D8624" }
+bright_yellow  = { rule = "text", from = "yellow", min = 3.0, exact = true, hex = "#9B7402" }
+bright_blue    = { rule = "text", from = "blue", min = 3.0, exact = true, hex = "#607CA2" }
+bright_magenta = { rule = "text", from = "purple", min = 3.0, exact = true, hex = "#A36790" }
+bright_cyan    = { rule = "text", from = "terminal.cyan", min = 3.0, exact = true, hex = "#05897D" }
+# Grays, as in dark: white is secondary text (4.5:1), bright black dim text (3:1).
+white          = { rule = "text", from = "warm.gray_light", hex = "#625D5B" }
+bright_black   = { rule = "text", from = "warm.gray_light", min = 3.0, hex = "#7E7977" }
+
+# Normal colors are the readable set (4.5:1); bright colors are lighter (3:1).
+[light.terminal]
+background     = "white"
+foreground     = "black"
+cursor         = "blue_accent_1"    # 4.75:1 on the background, with cream text on it
+selection      = "wash.blue"
+
+black          = "black"
+red            = "readable.red"
+green          = "readable.green"
+yellow         = "readable.yellow"
+blue           = "readable.blue"
+magenta        = "readable.purple"
+cyan           = "readable.cyan"
+white          = "terminal.white"
+
+bright_black   = "terminal.bright_black"
+bright_red     = "terminal.bright_red"
+bright_green   = "terminal.bright_green"
+bright_yellow  = "terminal.bright_yellow"
+bright_blue    = "terminal.bright_blue"
+bright_magenta = "terminal.bright_magenta"
+bright_cyan    = "terminal.bright_cyan"
+bright_white   = "white"

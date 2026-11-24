@@ -1,0 +1,3 @@
+# Settings for `make lint`. The scripts use only the standard library and need
+# Python 3.11 or later, for tomllib.
+target-version = "py311"

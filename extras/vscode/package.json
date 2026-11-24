@@ -1,0 +1,34 @@
+{
+  "name": "critical-rhino",
+  "displayName": "Critical Rhino",
+  "description": "A warm dark and light color theme: cream on near-black, readable at 4.5:1 everywhere.",
+  "version": "0.1.0",
+  "publisher": "matthewaburton",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Themes"
+  ],
+  "keywords": [
+    "theme",
+    "color-theme",
+    "dark",
+    "light"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "Critical Rhino Dark",
+        "uiTheme": "vs-dark",
+        "path": "./themes/critical-rhino-dark-color-theme.json"
+      },
+      {
+        "label": "Critical Rhino Light",
+        "uiTheme": "vs",
+        "path": "./themes/critical-rhino-light-color-theme.json"
+      }
+    ]
+  }
+}
