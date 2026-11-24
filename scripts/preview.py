@@ -1,10 +1,12 @@
-"""Generate build/preview.html, the Critical Rhino showcase, from palette.toml.
+"""Generate build/site/, the Critical Rhino site, from palette.toml.
 
     python3 scripts/preview.py
     python3 scripts/preview.py --compare main   # add a before/after section against a git ref (for review)
 
-The page shows both variants. It follows the viewer's light or dark setting and
-has its own Dark / Light switch; the page itself is drawn in the scheme's colors.
+The site is one page, index.html, plus the README's screenshots and the icons, so
+build/site/ is ready to serve as it is: the release workflow deploys it to GitHub
+Pages. The page shows both variants. It follows the viewer's light or dark setting
+and has its own Dark / Light switch; the page itself is drawn in the scheme's colors.
 
 Code samples use a tiny markup: «role|text» colors `text` with a syntax role
 (or a terminal slot in the terminal sample); «role+b|text» also makes it bold.
@@ -16,15 +18,22 @@ import argparse
 import html
 import itertools
 import re
+import shutil
+import struct
 import subprocess
 import sys
 import tomllib
 from dataclasses import dataclass
+from pathlib import Path
 
+import build_vscode
 import logo
 import rhino
 
-OUT = rhino.ROOT / "build" / "preview.html"
+SITE = rhino.ROOT / "build" / "site"
+IMAGES = rhino.ROOT / "docs" / "images"
+DESCRIPTION = ("A warm color scheme for editors and terminals, in dark and light, where every color the theme "
+               "sets is measured on every surface it's drawn on.")
 TOKEN_RE = re.compile(r"«([\w+]+)\|(.*?)»", re.DOTALL)
 VARIANTS = ("dark", "light")
 DISPLAY_NAMES = {"gray_dark": "Gray (Dark)", "gray_light": "Gray (Light)", "red_muted": "Red (Muted)",
@@ -228,6 +237,14 @@ def terminal_sample() -> str:
 
 # The shell's suggestion from history, after the caret on the last line.
 SUGGESTION = "«bright_black|og --oneline -3»"
+
+# The README's screenshots (docs/images/<key>-<variant>.png, from make screenshots): key, tab, alt text.
+SCREENSHOTS = (
+    ("neovim", "Neovim", "Python in Neovim"),
+    ("vscode", "VS Code", "Python in VS Code"),
+    ("terminal", "Ghostty with starship", "A shell in Ghostty with a starship prompt"),
+    ("lazygit", "lazygit", "lazygit"),
+)
 
 
 # --- palette model -------------------------------------------------------------
@@ -498,6 +515,11 @@ def hero(data: dict, infos: dict[str, Variant], canonical: dict[str, str], known
       purple numbers and blue types on near-black or cream, every one of them readable at 4.5:1 or better
       on the current line, selections and diffs as well as the background.</p>
       <div class="strip" aria-hidden="true">{strip}</div>
+      <div class="actions">
+        <a class="btn" href="#install">Install</a>
+        <a class="btn quiet" href="{rhino.REPO_URL}">Source on GitHub</a>
+        <p>For Neovim, VS Code and Cursor, Ghostty, starship, fzf, lazygit and tmux.</p>
+      </div>
     </div>
     <dl class="specs">
       <div><dt>Variants</dt><dd>Dark · Light</dd></div>
@@ -518,26 +540,126 @@ def editor_section(known: set[str]) -> str:
         ("diff", "sightings.py (diff)", diff_rows(known)),
     ]
     most = max(len(rows) for *_, rows in files)
-    tabs, panels = [], []
-    for i, (key, label, rows) in enumerate(files):
-        on = i == 0
-        tabs.append(f'<button class="ftab" role="tab" id="tab-{key}" aria-controls="panel-{key}" '
-                    f'aria-selected="{str(on).lower()}" tabindex="{0 if on else -1}">{esc(label)}</button>')
-        panels.append(f'<div role="tabpanel" id="panel-{key}" aria-labelledby="tab-{key}"{"" if on else " hidden"}>'
-                      f'{editor(rows, most)}</div>')
+    panels = [(key, label, editor(rows, most)) for key, label, rows in files]
     return f"""
 <section class="section" id="editor" aria-labelledby="h-editor">
   <div class="intro">
-    <p class="eyebrow">01 · Editor</p>
+    <p class="eyebrow">02 · Editor</p>
     <h2 id="h-editor">In the editor</h2>
     <p>Keywords are orange, strings red, comments green, types and built-ins blue, numbers purple and
     decorators yellow. Italics mark documentation and constants; bold marks emphasis. Switch files to see
     the same roles in TypeScript, Markdown and a diff.</p>
   </div>
-  <div class="pane">
-    <div class="tabstrip" role="tablist" aria-label="Sample file">{"".join(tabs)}</div>
-    {"".join(panels)}
+  {tabs_pane("ed", "Sample file", panels)}
+</section>"""
+
+
+def tabs_pane(prefix: str, label: str, panels: list[tuple[str, str, str]], cls: str = "") -> str:
+    """A tab strip over panels, (key, tab, html); the page's script switches them."""
+    tabs, bodies = [], []
+    for i, (key, tab, body) in enumerate(panels):
+        on = i == 0
+        tabs.append(f'<button class="ftab" role="tab" id="tab-{prefix}-{key}" aria-controls="panel-{prefix}-{key}" '
+                    f'aria-selected="{str(on).lower()}" tabindex="{0 if on else -1}">{esc(tab)}</button>')
+        bodies.append(f'<div role="tabpanel" id="panel-{prefix}-{key}" aria-labelledby="tab-{prefix}-{key}"'
+                      f'{"" if on else " hidden"}>{body}</div>')
+    return (f'<div class="pane {cls}"><div class="tabstrip" role="tablist" aria-label="{esc(label)}">'
+            f'{"".join(tabs)}</div>{"".join(bodies)}</div>')
+
+
+def png_size(path: Path) -> tuple[int, int]:
+    width, height = struct.unpack(">II", path.read_bytes()[16:24])
+    return width, height
+
+
+def screenshots_section() -> str:
+    panels = []
+    for key, tab, alt in SCREENSHOTS:
+        imgs = []
+        for v in VARIANTS:
+            w, h = png_size(IMAGES / f"{key}-{v}.png")
+            imgs.append(f'<img class="only-{v}" src="images/{key}-{v}.png" width="{w}" height="{h}" '
+                        f'alt="{esc(alt)}, {v}" loading="lazy" decoding="async">')
+        panels.append((key, tab, f'<div class="shotbox">{"".join(imgs)}</div>'))
+    return f"""
+<section class="section" id="screenshots" aria-labelledby="h-screenshots">
+  <div class="intro">
+    <p class="eyebrow">01 · Screenshots</p>
+    <h2 id="h-screenshots">In the real apps</h2>
+    <p>Neovim and VS Code editing the same file, a shell in Ghostty with a starship prompt, and lazygit,
+    each captured from the current themes. Switch the page between Dark and Light to see both variants.</p>
   </div>
+  {tabs_pane("shot", "App", panels, "shots-pane")}
+</section>"""
+
+
+def install_section(known: set[str]) -> str:
+    vsix = build_vscode.vsix_path().name
+    vsix_url = f"{rhino.REPO_URL}/releases/download/v{rhino.VERSION}/{vsix}"
+    clone = ("Terminal, once", f"git clone {rhino.REPO_URL}.git ~/critical-rhino")
+    home = "~/critical-rhino/extras"
+    tools = [
+        ("neovim", "Neovim",
+         ("A standard colorscheme plugin for Neovim 0.10 or later. <code>critical-rhino</code> follows "
+         "<code>'background'</code>; <code>critical-rhino-dark</code> and <code>critical-rhino-light</code> pick "
+         "one. lualine picks up the matching theme by itself, and the README covers LazyVim and bufferline."),
+         [("lazy.nvim plugin spec",
+           ('{\n  «string|"matthewaburton/critical-rhino"»,\n  lazy = «keyword|false»,\n  priority = «number|1000»,\n'
+           '  config = «keyword|function»()\n    vim.cmd.colorscheme(«string|"critical-rhino"»)\n  «keyword|end»,\n},'))]),
+        ("vscode", "VS Code and Cursor",
+         (f'Download <a href="{esc(vsix_url)}">{esc(vsix)}</a> and install it with <b>Extensions: Install from '
+         "VSIX…</b>, or from a terminal. Then pick <b>Critical Rhino Dark</b> or <b>Critical Rhino Light</b> "
+         "with <b>Preferences: Color Theme</b>, or follow the desktop with the settings below."),
+         [("Terminal", f"code --install-extension {vsix}\ncursor --install-extension {vsix}"),
+          ("settings.json",
+           ('«string|"window.autoDetectColorScheme"»: «keyword|true»,\n'
+           '«string|"workbench.preferredDarkColorTheme"»: «string|"Critical Rhino Dark"»,\n'
+           '«string|"workbench.preferredLightColorTheme"»: «string|"Critical Rhino Light"»'))]),
+        ("ghostty", "Ghostty",
+         ("Point <code>theme</code> at both files by absolute path and Ghostty 1.3 or later follows the desktop. "
+         "Colors in your own config override the theme's, so remove any <code>background</code>, "
+         "<code>foreground</code>, <code>palette</code> and <code>selection-*</code> lines."),
+         [clone, ("~/.config/ghostty/config.ghostty",
+                  ("theme = light:/home/you/critical-rhino/extras/ghostty/critical-rhino-light,"
+                  "dark:/home/you/critical-rhino/extras/ghostty/critical-rhino-dark"))]),
+        ("starship", "starship",
+         ("Starship reads a single config file. If you have your own, copy the theme's tables into it instead: "
+         "they only replace the default styles that use fixed colors."),
+         [clone, ("~/.bashrc", f"«keyword|export» STARSHIP_CONFIG={home}/starship/critical-rhino.toml")]),
+        ("fzf", "fzf",
+         ("It appends its colors to <code>FZF_DEFAULT_OPTS</code>, so your other options stay. Load it before "
+         "fzf's key bindings."),
+         [clone, ("~/.bashrc", f"«keyword|.» {home}/fzf/critical-rhino.sh")]),
+        ("lazygit", "lazygit",
+         "Point lazygit at the theme, or list your own config first to keep it.",
+         [clone, ("~/.bashrc",
+                  (f"«keyword|export» LG_CONFIG_FILE={home}/lazygit/critical-rhino.yml\n"
+                  "«comment|# or, to keep your own config, list it first:»\n"
+                  '«keyword|export» LG_CONFIG_FILE=«string|"$HOME/.config/lazygit/config.yml,'
+                  '$HOME/critical-rhino/extras/lazygit/critical-rhino.yml"»'))]),
+        ("tmux", "tmux",
+         ("It sets only colors: the status bar, borders, messages, the copy-mode selection and search matches. "
+         "Layout and status-line contents stay yours."),
+         [clone, ("~/.tmux.conf", f"«keyword|source-file» {home}/tmux/critical-rhino.conf")]),
+    ]
+    panels = []
+    for key, tab, note, snippets in tools:
+        snips = "".join(f'<figure class="snip"><figcaption><span>{esc(caption)}</span>'
+                        f'<button type="button" class="copy">Copy</button></figcaption>'
+                        f'<pre><code>{render(code, "s", known)}</code></pre></figure>'
+                        for caption, code in snippets)
+        panels.append((key, tab, (f'<div class="inst"><p class="inst-note">{note}</p>'
+                                 f'<div class="snips">{snips}</div></div>')))
+    return f"""
+<section class="section" id="install" aria-labelledby="h-install">
+  <div class="intro">
+    <p class="eyebrow">07 · Install</p>
+    <h2 id="h-install">Install</h2>
+    <p>Neovim installs like any colorscheme plugin, and VS Code and Cursor from a download. The other themes
+    are plain files: clone the repository somewhere it can stay and point each tool at it. The
+    <a href="{rhino.REPO_URL}#install">README</a> has more on each tool.</p>
+  </div>
+  {tabs_pane("inst", "Tool", panels)}
 </section>"""
 
 
@@ -617,7 +739,7 @@ def palette_section(infos: dict[str, Variant], canonical: dict[str, str]) -> str
     return f"""
 <section class="section" id="palette" aria-labelledby="h-palette">
   <div class="intro">
-    <p class="eyebrow">02 · Palette</p>
+    <p class="eyebrow">03 · Palette</p>
     <h2 id="h-palette">The palette</h2>
     <p>Six warm accents and a terminal cyan, set on near-black and cream. Each accent has a text tone for
     each variant: the same hue and chroma, with lightness moved just far enough to read at 4.5:1. The grays
@@ -666,7 +788,7 @@ def roles_section(infos: dict[str, Variant], styles: dict[str, tuple[str, ...]])
     return f"""
 <section class="section" id="roles" aria-labelledby="h-roles">
   <div class="intro">
-    <p class="eyebrow">03 · Roles</p>
+    <p class="eyebrow">04 · Roles</p>
     <h2 id="h-roles">Syntax roles</h2>
     <p>{len(dark)} roles in {len(keys)} colors, the same in both variants, so a keyword means the same thing
     on cream as on near-black. Anything without a role is plain text.</p>
@@ -705,7 +827,7 @@ def readability_section(infos: dict[str, Variant]) -> str:
     return f"""
 <section class="section" id="readability" aria-labelledby="h-readability">
   <div class="intro">
-    <p class="eyebrow">04 · Readability</p>
+    <p class="eyebrow">05 · Readability</p>
     <h2 id="h-readability">Readable on every surface</h2>
     <p>Code isn't only drawn on the background. Every text color is measured against the current line,
     a selection, inserted and removed diff lines, the hovers and widgets that show code, changed lines
@@ -739,7 +861,7 @@ def terminal_section(infos: dict[str, Variant]) -> str:
     return f"""
 <section class="section" id="terminal" aria-labelledby="h-terminal">
   <div class="intro">
-    <p class="eyebrow">05 · Terminal</p>
+    <p class="eyebrow">06 · Terminal</p>
     <h2 id="h-terminal">In the terminal</h2>
     <p>Most programs print in the normal ANSI colors, so the six colored normals read at 4.5:1, on the
     background and inside a selection. The brights are lighter in both variants and stay at 3:1 or better.
@@ -800,7 +922,7 @@ def reference_section(infos: dict[str, Variant], styles: dict[str, tuple[str, ..
     return f"""
 <section class="section" id="reference" aria-labelledby="h-reference">
   <div class="intro">
-    <p class="eyebrow">06 · Reference</p>
+    <p class="eyebrow">08 · Reference</p>
     <h2 id="h-reference">Every role</h2>
     <p>The values theme files are built from. Code colors are each accent's text tone for that variant.
     Translucent colors are shown blended onto their background, with the color and opacity underneath.</p>
@@ -869,8 +991,10 @@ CSS = r"""
   --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
+img { max-width: 100%; height: auto; }
 html { scroll-behavior: smooth; scroll-padding-top: 72px; }
-body { background: var(--bg); color: var(--fg); font: 16px/1.6 var(--sans); transition: background-color .3s, color .3s; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.6 var(--sans); transition: background-color .3s, color .3s; }
 code, pre { font-family: var(--mono); }
 a { color: var(--link); }
 :focus-visible { outline: 2px solid var(--link); outline-offset: 2px; }
@@ -1096,14 +1220,50 @@ summary { padding: 14px 2px; cursor: pointer; font-weight: 600; }
 .chip i { width: 16px; height: 16px; border-radius: 4px; box-shadow: inset 0 0 0 1px var(--hair); flex: none; }
 .compare { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 
-footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 24px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
 footer .mark { color: var(--fg); }
+footer a:not(.mark) { color: var(--fg); text-underline-offset: 2px; }
+
+/* hero actions and the top bar's source link */
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.actions p { flex-basis: 100%; color: var(--muted); font-size: .92rem; }
+.btn {
+  display: inline-flex; align-items: center; padding: 10px 20px; border-radius: 8px;
+  background: var(--ui-accent); color: var(--on-accent); font: 650 .95rem/1.2 var(--sans); text-decoration: none;
+}
+.btn.quiet { background: none; color: var(--fg); box-shadow: inset 0 0 0 1px var(--line); }
+.btn:hover { filter: brightness(1.08); }
+.btn.quiet:hover { filter: none; background: var(--surface); }
+.src { color: var(--muted); font-size: .88rem; font-weight: 500; text-decoration: none; white-space: nowrap; }
+.src:hover { color: var(--fg); }
+
+/* screenshots */
+.shotbox { display: grid; justify-items: center; background: var(--ui-background); }
+.shotbox img { display: block; }
+
+/* install */
+.inst { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 24px 40px; padding: 24px; background: var(--ui-background); color: var(--ui-foreground); }
+.inst-note { font-size: .95rem; line-height: 1.6; max-width: 46ch; }
+.inst-note code { font-size: .88em; white-space: nowrap; }
+.inst-note a { color: var(--ui-link, var(--link)); }
+.snips { display: grid; gap: 16px; align-content: start; min-width: 0; }
+.snip { margin: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; min-width: 0; }
+.snip figcaption {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 5px 6px 5px 14px;
+  background: var(--ui-surface); color: var(--ui-muted_foreground); font: 12px var(--mono);
+}
+.copy { padding: 3px 10px; border: 0; border-radius: 5px; background: none; color: var(--ui-muted_foreground); font: 500 12px var(--sans); cursor: pointer; }
+.copy:hover { background: var(--ui-hover, var(--raised)); color: var(--ui-foreground); }
+.snip pre { margin: 0; padding: 12px 14px; overflow-x: auto; background: var(--ui-background); color: var(--s-text); font: 13px/1.65 var(--mono); }
 
 @media (max-width: 1100px) {
   .acc { grid-template-columns: 80px minmax(0, 1fr) 15rem; }
   .acc-sw { width: 80px; height: 80px; }
   .acc .use { grid-column: 2 / -1; }
   .proofs { grid-template-columns: 1fr; }
+}
+@media (max-width: 1000px) {
+  .nav a:not(.keep) { display: none; }
 }
 @media (max-width: 900px) {
   .intro, .hero-copy { grid-template-columns: minmax(0, 1fr); }
@@ -1118,9 +1278,11 @@ footer .mark { color: var(--fg); }
   .wb-status div:last-child span:nth-child(n+2) { display: none; }
   .ansi { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .compare { grid-template-columns: 1fr; }
+  .inst { grid-template-columns: minmax(0, 1fr); padding: 18px 16px; }
 }
 @media (max-width: 720px) {
   .nav { display: none; }
+  .top-in { gap: 16px; }
   .switch { margin-left: auto; }
   .wrap { gap: 88px; padding-block: 40px 72px; }
   .acc { grid-template-columns: 64px minmax(0, 1fr); gap: 16px 18px; }
@@ -1131,6 +1293,10 @@ footer .mark { color: var(--fg); }
 @media (max-width: 480px) {
   .ansi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .use div { grid-template-columns: 1fr; gap: 0; }
+  .src { display: none; }
+}
+@media (max-width: 420px) {
+  .top .mark-name { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
@@ -1183,6 +1349,25 @@ JS = """
       });
     }
   }
+
+  for (const b of document.querySelectorAll('.copy')) {
+    const pre = b.closest('.snip').querySelector('pre');
+    let timer;
+    b.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(pre.textContent);
+        b.textContent = 'Copied';
+      } catch {
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        getSelection().removeAllRanges();
+        getSelection().addRange(range);
+        b.textContent = 'Selected';
+      }
+      clearTimeout(timer);
+      timer = setTimeout(() => { b.textContent = 'Copy'; }, 1600);
+    });
+  }
 })();
 """
 
@@ -1231,27 +1416,50 @@ def build(compare_ref: str | None = None) -> str:
     top = f"""
 <header class="top">
   <div class="top-in">
-    <a class="mark" href="#top">{brand}{name}</a>
+    <a class="mark" href="#top">{brand}<span class="mark-name">{name}</span></a>
     <nav class="nav" aria-label="Sections">
-      <a href="#editor">Editor</a><a href="#palette">Palette</a><a href="#roles">Roles</a>
-      <a href="#readability">Readability</a><a href="#terminal">Terminal</a>
+      <a href="#screenshots">Screenshots</a><a href="#editor">Editor</a><a href="#palette">Palette</a>
+      <a href="#readability">Readability</a><a href="#terminal">Terminal</a><a class="keep" href="#install">Install</a>
     </nav>
     <div class="switch" role="group" aria-label="Variant">
       <button type="button" data-set="dark" aria-pressed="false"><i></i>Dark</button>
       <button type="button" data-set="light" aria-pressed="false"><i></i>Light</button>
     </div>
+    <a class="src" href="{rhino.REPO_URL}">GitHub</a>
   </div>
 </header>"""
     footer = f"""
 <footer>
   <a class="mark" href="#top">{brand}{name}</a>
-  <p>Every color on this page is generated from <code>palette.toml</code>.</p>
+  <p><a href="{rhino.REPO_URL}/releases/tag/v{rhino.VERSION}">Version {rhino.VERSION}</a> ·
+  <a href="{rhino.REPO_URL}">Source on GitHub</a> · <a href="{rhino.REPO_URL}/blob/main/docs/design.md">Design notes</a> ·
+  <a href="{rhino.REPO_URL}/blob/main/LICENSE">MIT license</a></p>
+  <p>Every color on this page is generated from
+  <a href="{rhino.REPO_URL}/blob/main/palette.toml"><code>palette.toml</code></a>.</p>
 </footer>"""
 
     fonts = ("https://fonts.googleapis.com/css2?family=Archivo:ital,wdth,wght@0,62..125,100..900;1,62..125,100..900"
              "&family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&display=swap")
-    return f"""<title>{name} Palette</title>
-<meta name="claude:viewport-fit-sides" content="cover">
+    social = f"{rhino.SITE_URL}images/{SCREENSHOTS[0][0]}-dark.png"
+    return f"""<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>{name}: a warm color scheme for editors and terminals</title>
+<meta name="description" content="{esc(DESCRIPTION)}">
+<link rel="canonical" href="{rhino.SITE_URL}">
+<link rel="icon" href="icon-light.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
+<link rel="icon" href="icon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="{light.bg}" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="{dark.bg}" media="(prefers-color-scheme: dark)">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{name}">
+<meta property="og:description" content="{esc(DESCRIPTION)}">
+<meta property="og:url" content="{rhino.SITE_URL}">
+<meta property="og:image" content="{social}">
+<meta property="og:image:alt" content="{esc(SCREENSHOTS[0][2])}, dark">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="{fonts}">
@@ -1261,31 +1469,45 @@ def build(compare_ref: str | None = None) -> str:
 {chr(10).join(role_css)}
 </style>
 <script>{EARLY_JS}</script>
+</head>
+<body>
 <div id="top"></div>
 {top}
 <main class="wrap">
 {hero(data, infos, canonical, known)}
 {compare_html}
+{screenshots_section()}
 {editor_section(known)}
 {palette_section(infos, canonical)}
 {roles_section(infos, styles)}
 {readability_section(infos)}
 {terminal_section(infos)}
+{install_section(known)}
 {reference_section(infos, styles)}
 {footer}
 </main>
 <script>{JS}</script>
+</body>
+</html>
 """
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Generate build/preview.html from palette.toml.")
+    parser = argparse.ArgumentParser(description="Generate the site, build/site/, from palette.toml.")
     parser.add_argument("--compare", metavar="REF",
                         help="add a before/after section against palette.toml at this git ref (for review)")
     args = parser.parse_args()
-    OUT.parent.mkdir(exist_ok=True)
-    OUT.write_text(build(args.compare), encoding="utf-8")
-    print(f"wrote {OUT.relative_to(rhino.ROOT)}")
+    page = build(args.compare)
+    # build/site/ holds only what this script writes, so it starts empty each time.
+    shutil.rmtree(SITE, ignore_errors=True)
+    (SITE / "images").mkdir(parents=True)
+    (SITE / "index.html").write_text(page, encoding="utf-8")
+    for key, *_ in SCREENSHOTS:
+        for v in VARIANTS:
+            shutil.copy2(IMAGES / f"{key}-{v}.png", SITE / "images")
+    for v in VARIANTS:
+        shutil.copy2(IMAGES / f"icon-{v}.svg", SITE)
+    print(f"wrote {SITE.relative_to(rhino.ROOT)}/index.html and its images")
     return 0
 
 

@@ -475,8 +475,8 @@ and tmux builders share.
 
 ## Screenshots
 
-`make screenshots` retakes the README's pictures from the current themes, so they
-can't drift from the palette. The terminal and lazygit pictures are the terminal
+`make screenshots` retakes the README's pictures, which the site shows too, from the
+current themes, so they can't drift from the palette. The terminal and lazygit pictures are the terminal
 audit's shell and commits scenes, and the VS Code pictures are its audit's explorer
 scene; each is copied only if its audit passes. The Neovim pictures come from the
 Neovim config on your machine, with this checkout's theme, editing the same sample

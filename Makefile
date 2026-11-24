@@ -3,7 +3,7 @@
 # palette.toml is the source of truth. The scripts in scripts/ derive, check and
 # build from it, using only the standard library. The themes are generated into
 # the repo (lua/ for Neovim, extras/ for everything else) and so is the logo
-# (docs/images/); everything else goes to build/.
+# (docs/images/); everything else, the site included, goes to build/.
 
 .DEFAULT_GOAL := help
 
@@ -16,13 +16,13 @@ PYTHON_MIN := 3.11
 # Pinned ruff release for reproducible lint runs, installed with uv.
 RUFF_VERSION ?= 0.17.4
 
-# The git ref preview:compare shows changes against.
+# The git ref site:compare shows changes against.
 REF ?= main
 
 .PHONY: help \
         setup doctor versions clean \
         derive \
-        build preview preview\:compare logo nvim ghostty vscode vscode\:package vscode\:install \
+        build site site\:compare logo nvim ghostty vscode vscode\:package vscode\:install \
         starship fzf lazygit tmux screenshots \
         palette\:check logo\:check nvim\:check nvim\:audit ghostty\:check vscode\:check vscode\:audit \
         starship\:check fzf\:check lazygit\:check tmux\:check terminal\:audit term\:test lint check
@@ -123,12 +123,12 @@ derive: ## Refresh derived hex values in palette.toml after changing a rule
 # Build
 #------------------------------------------------------------------------------
 
-build: preview logo nvim ghostty vscode starship fzf lazygit tmux ## Build the showcase, the logo and every theme
+build: site logo nvim ghostty vscode starship fzf lazygit tmux ## Build the site, the logo and every theme
 
-preview: ## Generate the showcase page, build/preview.html
+site: ## Generate the site, build/site/ (the release workflow deploys it to GitHub Pages)
 	$(PYTHON) scripts/preview.py
 
-preview\:compare: ## Showcase plus a before/after section against REF (default main); for review, not publishing
+site\:compare: ## The site plus a before/after section against REF (default main); for review, not publishing
 	$(PYTHON) scripts/preview.py --compare $(REF)
 
 logo: ## Draw the logo, docs/images/{logo,icon}-{dark,light}.svg
