@@ -1,0 +1,31 @@
+# Every check on every push and pull request. Ghostty, starship, Neovim and VS Code
+# aren't installed here, so their builders skip what needs the app (the output says
+# so); run make check locally too. The audits only run locally.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"  # the oldest Python the scripts support
+      - uses: astral-sh/setup-uv@v10.4.0
+      - name: Install tmux, so tmux:check can have it load the theme
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tmux
+      - run: make setup
+      - run: make check
+      - run: make site

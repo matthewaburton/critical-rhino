@@ -240,8 +240,11 @@ def tool_main(tool: str, outputs: Outputs, validate: Callable[[list[Path]], list
             print(f"- {e}")
         if errors:
             return 1
-        print(f"OK: the {tool} theme is current{f', {tool} accepts it,' if validate else ''} "
-              "and every pair it creates reads.")
+        if validate and shutil.which(tool):
+            print(f"OK: the {tool} theme is current, {tool} accepts it, and every pair it creates reads.")
+        else:
+            missing = f" ({tool} isn't installed, so it didn't load the theme)" if validate else ""
+            print(f"OK: the {tool} theme is current and every pair it creates reads{missing}.")
         return 0
     for e in errors:
         print(f"- {e}", file=sys.stderr)
@@ -370,8 +373,9 @@ def main() -> int:
             print(f"- {e}")
         if errors:
             return 1
-        print(f"OK: Ghostty themes are current, Ghostty accepts them, and every pair they create reads "
-              f"({len(files)} variants).")
+        accepted = (", Ghostty accepts them," if shutil.which("ghostty")
+                    else " (Ghostty isn't installed, so it didn't load them)")
+        print(f"OK: Ghostty themes are current{accepted} and every pair they create reads ({len(files)} variants).")
         return 0
     for e in errors:
         print(f"- {e}", file=sys.stderr)

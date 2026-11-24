@@ -1,0 +1,76 @@
+# On an annotated vX.Y.Z tag: check everything again, create the GitHub release with
+# the tag's message as its notes and the .vsix attached, then deploy the site to
+# GitHub Pages. The site changes only here. AGENTS.md has the release steps.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      # checkout fetches the tagged commit, not the tag object; fetch the tag itself
+      # so its message (the release notes) is here.
+      - name: Fetch the tag
+        run: git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Check the tag matches VERSION and carries notes
+        id: tag
+        run: |
+          version=$(python3 -c 'import sys; sys.path.insert(0, "scripts"); import rhino; print(rhino.VERSION)')
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME doesn't match VERSION $version in scripts/rhino.py"
+            exit 1
+          fi
+          if [ "$(git cat-file -t "$GITHUB_REF_NAME")" != tag ]; then
+            echo "::error::Tag $GITHUB_REF_NAME isn't annotated; its message becomes the release notes"
+            exit 1
+          fi
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: astral-sh/setup-uv@v10.4.0
+      - name: Install tmux, so tmux:check can have it load the theme
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tmux
+      - run: make setup
+      - run: make check
+      - run: make vscode:package
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: >-
+          gh release create "$GITHUB_REF_NAME" "build/critical-rhino-$VERSION.vsix"
+          --verify-tag --title "Critical Rhino $VERSION" --notes-file "$RUNNER_TEMP/notes.md"
+      - run: make site
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: build/site
+
+  pages:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    # The github-pages environment allows main by default; it needs a v* tag rule too.
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
