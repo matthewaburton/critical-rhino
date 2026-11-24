@@ -5,6 +5,14 @@
   "version": "0.1.0",
   "publisher": "matthewaburton",
   "license": "MIT",
+  "homepage": "https://matthewaburton.github.io/critical-rhino/",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matthewaburton/critical-rhino.git"
+  },
+  "bugs": {
+    "url": "https://github.com/matthewaburton/critical-rhino/issues"
+  },
   "engines": {
     "vscode": "^1.90.0"
   },

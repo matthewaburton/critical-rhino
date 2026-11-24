@@ -43,7 +43,6 @@ from rhino import Color
 
 EXT_DIR = rhino.ROOT / "extras" / "vscode"
 THEME_DIR = EXT_DIR / "themes"
-VERSION = "0.1.0"
 PUBLISHER = "matthewaburton"
 NAME = "critical-rhino"
 ENGINE = "^1.90.0"
@@ -1326,9 +1325,12 @@ def package_json(variants: list[str]) -> dict:
         "name": NAME,
         "displayName": "Critical Rhino",
         "description": "A warm dark and light color theme: cream on near-black, readable at 4.5:1 everywhere.",
-        "version": VERSION,
+        "version": rhino.VERSION,
         "publisher": PUBLISHER,
         "license": "MIT",
+        "homepage": rhino.SITE_URL,
+        "repository": {"type": "git", "url": f"{rhino.REPO_URL}.git"},
+        "bugs": {"url": f"{rhino.REPO_URL}/issues"},
         "engines": {"vscode": ENGINE},
         "categories": ["Themes"],
         "keywords": ["theme", "color-theme", "dark", "light"],
@@ -1376,6 +1378,7 @@ VSIX_MANIFEST = """<?xml version="1.0" encoding="utf-8"?>
   <Dependencies />
   <Assets>
     <Asset Type="Microsoft.VisualStudio.Code.Manifest" Path="extension/package.json" Addressable="true" />
+    <Asset Type="Microsoft.VisualStudio.Services.Content.License" Path="extension/LICENSE.txt" Addressable="true" />
   </Assets>
 </PackageManifest>
 """
@@ -1384,6 +1387,7 @@ CONTENT_TYPES = """<?xml version="1.0" encoding="utf-8"?>
   <Default Extension=".json" ContentType="application/json" />
   <Default Extension=".vsixmanifest" ContentType="text/xml" />
   <Default Extension=".md" ContentType="text/markdown" />
+  <Default Extension=".txt" ContentType="text/plain" />
 </Types>
 """
 
@@ -1420,7 +1424,7 @@ def install(vsix: Path) -> int:
 
 
 def vsix_path() -> Path:
-    return rhino.ROOT / "build" / f"{NAME}-{VERSION}.vsix"
+    return rhino.ROOT / "build" / f"{NAME}-{rhino.VERSION}.vsix"
 
 
 def package(files: dict[Path, str]) -> Path:
@@ -1429,11 +1433,12 @@ def package(files: dict[Path, str]) -> Path:
     out.parent.mkdir(parents=True, exist_ok=True)
     meta = package_json([])
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("extension.vsixmanifest", VSIX_MANIFEST.format(name=NAME, version=VERSION, publisher=PUBLISHER,
+        z.writestr("extension.vsixmanifest", VSIX_MANIFEST.format(name=NAME, version=rhino.VERSION, publisher=PUBLISHER,
                                                                   description=meta["description"], engine=ENGINE))
         z.writestr("[Content_Types].xml", CONTENT_TYPES)
         for path, text in files.items():
             z.writestr(f"extension/{path.relative_to(EXT_DIR).as_posix()}", text)
+        z.write(rhino.ROOT / "LICENSE", "extension/LICENSE.txt")
     return out
 
 
