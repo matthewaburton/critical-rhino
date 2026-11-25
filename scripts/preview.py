@@ -171,6 +171,39 @@ SAMPLES = {
 «keyword|const» herd = «keyword|await» loadSightings(«string|"sightings.csv"»);
 console.«builtin|log»(«string|`Loaded »«interpolation|${»herd.length«interpolation|}»«string| sightings`»);
 ''',
+    "Go": r'''
+«keyword|package» reserve
+
+«keyword|import» (
+	«string|"strconv"»
+	«string|"strings"»
+)
+
+«keyword|const» «constant|MaxWeightKg» = «number|3600» «comment|// estimated from drone photos»
+
+«comment|// Sighting is one line of the field log, such as "Kifaru,2140,true".»
+«keyword|type» «type|Sighting» «keyword|struct» {
+	Name     «builtin|string»
+	WeightKg «builtin|float64»
+	Tagged   «builtin|bool»
+}
+
+«comment|// Parse reads the field log and skips the lines it can't parse.»
+«keyword|func» Parse(fieldLog «builtin|string») []«type|Sighting» {
+	«keyword|var» herd []«type|Sighting»
+	«keyword|for» _, line := «keyword|range» strings.Split(fieldLog, «string|"»«string_escape|\n»«string|"») {
+		«comment|// »«todo|TODO»«comment|: report bad lines instead of skipping them.»
+		name, rest, _ := strings.Cut(line, «string|","»)
+		weight, tagged, _ := strings.Cut(rest, «string|","»)
+		kg, err := strconv.ParseFloat(weight, «number|64»)
+		«keyword|if» err != «keyword|nil» || kg <= «number|0» || kg > «constant|MaxWeightKg» {
+			«keyword|continue»
+		}
+		herd = «builtin|append»(herd, «type|Sighting»{name, kg, tagged == «string|"true"»})
+	}
+	«keyword|return» herd
+}
+''',
     "Markdown": r'''
 «heading|# Reserve log»
 
@@ -536,6 +569,7 @@ def editor_section(known: set[str]) -> str:
     files = [
         ("python", "sightings.py", python_rows(known)),
         ("typescript", "sightings.ts", sample_rows("TypeScript", known)),
+        ("go", "sightings.go", sample_rows("Go", known)),
         ("markdown", "notes.md", sample_rows("Markdown", known)),
         ("diff", "sightings.py (diff)", diff_rows(known)),
     ]
@@ -548,7 +582,7 @@ def editor_section(known: set[str]) -> str:
     <h2 id="h-editor">In the editor</h2>
     <p>Keywords are orange, strings red, comments green, types and built-ins blue, numbers purple and
     decorators yellow. Italics mark documentation and constants; bold marks emphasis. Switch files to see
-    the same roles in TypeScript, Markdown and a diff.</p>
+    the same roles in TypeScript, Go, Markdown and a diff.</p>
   </div>
   {tabs_pane("ed", "Sample file", panels)}
 </section>"""
