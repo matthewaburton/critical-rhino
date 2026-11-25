@@ -1189,7 +1189,7 @@ h4 { font: 700 1.12rem/1.25 var(--sans); font-stretch: 110%; }
 .proof { display: grid; gap: 14px; align-content: start; padding: 20px 18px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
 .proof h3 { font: 700 1.1rem var(--sans); font-stretch: 110%; }
 .proof-t { width: 100%; border-collapse: separate; border-spacing: 2px; font-variant-numeric: tabular-nums; }
-.proof-t thead th { padding: 0 2px 6px; font: 500 .58rem/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: left; vertical-align: bottom; }
+.proof-t thead th { padding: 0 2px 6px; font: 500 .58rem/1.3 var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: left; vertical-align: bottom; white-space: nowrap; }
 .proof-t thead i { display: block; width: 100%; height: 6px; margin-bottom: 6px; border-radius: 2px; box-shadow: inset 0 0 0 1px var(--hair); }
 .proof-t tbody th { padding-right: 6px; text-align: left; font-weight: 600; font-size: .82rem; line-height: 1.25; white-space: nowrap; }
 .proof-t tbody th small { display: block; color: var(--muted); font-weight: 400; font-size: .74rem; }
