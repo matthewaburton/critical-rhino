@@ -28,8 +28,8 @@ for the light theme, where bright white is the background.
 
 ## The rest of the scheme
 
-The same palette themes Neovim, Ghostty, starship, fzf, lazygit and tmux. The
-[site](https://matthewaburton.github.io/critical-rhino/) shows every color and the role it plays, and the
+The same palette themes Neovim, Ghostty, starship, fzf, lazygit, tmux and Claude
+Code. The [site](https://matthewaburton.github.io/critical-rhino/) shows every color and the role it plays, and the
 [repository](https://github.com/matthewaburton/critical-rhino) has the other themes, the design notes and the
 [release notes](https://github.com/matthewaburton/critical-rhino/releases).
 

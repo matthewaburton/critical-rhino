@@ -14,6 +14,7 @@ covers installing it.
 - [Ghostty](#ghostty)
 - [VS Code and Cursor](#vs-code-and-cursor)
 - [Starship, fzf, lazygit and tmux](#starship-fzf-lazygit-and-tmux)
+- [Claude Code](#claude-code)
 - [Adding a tool](#adding-a-tool)
 - [Screenshots](#screenshots)
 - [Logo](#logo)
@@ -35,7 +36,7 @@ the other nearly the background.
 
 A color is measured where it's drawn, on every surface it can land on, and a
 translucent color is blended onto each surface first. Every theme in the repo has a
-check that does this for its own color keys, and three audits run the real apps and
+check that does this for its own color keys, and four audits run the real apps and
 measure what they draw. A theme that fails its check isn't written.
 
 ## The palette
@@ -457,6 +458,72 @@ both blends, reversed text with its colors swapped.
   commit's graph line in bright white, which in light is the background color, so
   that line vanishes. The audit lists them but doesn't fail on them.
 
+## Claude Code
+
+Claude Code reads custom themes from `~/.claude/themes`: a built-in theme to start
+from (`base`) and a color for each of its 72 tokens. It draws on the terminal's own
+background, so `make claude-code:check` measures every pair the way Ghostty draws it,
+as for the tools above.
+
+- **Code takes the terminal's colors, in Claude Code's own scheme.** No token colors
+  code, and nothing chooses which color each kind of code takes: Claude Code
+  highlights it in a fixed scheme that the base picks (Monokai under its dark theme,
+  GitHub's under light, neither of which reads at 4.5:1 throughout on Critical Rhino's
+  backgrounds), and only lets you turn highlighting off (Ctrl+T in `/theme`, which
+  leaves code blocks and diffs in the text color). Both themes start from the
+  ANSI bases, whose schemes use the terminal's own colors, so in Ghostty code is in
+  Critical Rhino's colors, though not in the editors' roles. Code blocks use the
+  normals: strings red and comments green, as in the editors, but keywords and inline
+  code blue (bright blue in dark), function names yellow, types and built-ins cyan,
+  decorators bright black at 3:1. Diffs are highlighted in the brights, at 3:1:
+  strings bright green, keywords and types bright cyan, names bright yellow, with the
+  code text in the terminal's white (dark) or black (light). Removed lines aren't
+  highlighted: their code is faint, at 3:1, with the line number and marker in bright
+  red. In a terminal with another palette, code follows that palette.
+- **Every token is a palette color.** The spinner, Claude's name and the logo are
+  orange; permission prompts and suggestions blue; plan mode cyan; accept-edits and
+  the bash border purple; successes, errors and warnings green, red and yellow (auto
+  mode's label is drawn in the warning color). Dim text is the terminal's white,
+  secondary text at 4.5:1, also when it's drawn faint, at 3:1. The prompt's rules
+  and dividers are bright black at 3:1. Your messages and bash commands sit on the
+  side bar's surface. Shimmers fade toward the text color, so both ends of every fade
+  read. The subagent and rainbow colors are the readable accents, and
+  `inverseText`, text on a colored fill, is the background color, which reads on
+  every accent.
+- **Diff backgrounds come from the 256-color palette.** Under the ANSI bases Claude
+  Code draws them from it, so the themes name entries rather than let it round a
+  palette color. Diff code text has to stay at 4.5:1 on them, the brights at 3:1 and
+  a removed line's faint code at 3:1. In dark that leaves navy (`ansi256(17)`) for
+  added lines, as in Claude Code's colorblind-friendly theme (no green is dark
+  enough), and for removed lines a near-black (`232`) a step darker than the
+  background (under faint code, no red is dark enough). Light takes the palest cyan
+  (`159`), to match, and pink (`224`). Changed words are
+  cut out in the terminal's extreme, black in dark and white in light, since no
+  stronger tint keeps the code readable. Added and removed lines, and words and their
+  lines, stay 0.08 apart in OKLab, the palette's rule for telling syntax colors
+  apart.
+- **Where each token lands was measured** in Claude Code 2.1.332, with a probe theme
+  that gives every token its own color: the prompt's rules, dividers, dim text (plain,
+  faint, bold and italic), the spinner fading between its two colors, a permission
+  prompt with a diff, the mode labels, bash mode, your messages and bash commands.
+  Tokens it didn't show are held as text on the terminal's background, where Claude
+  Code draws nearly everything.
+- **`make claude-code:audit` measures what Claude Code really draws.** It builds a
+  throwaway home holding only the themes and a made-up conversation (a file read, an
+  edit and its diff, a test run, an answer with a code block and a list, a bash
+  command), and has Claude Code resume it in a private tmux whose server starts with
+  a bare environment: none of your settings, plugins, sign-in or API key reach it,
+  and nothing goes to a model. It captures the conversation in each permission mode,
+  the slash-command menu, `/theme` with its preview, and the conversation again with
+  highlighting off, and measures every character as the terminal audit does.
+- **Dark and light don't switch by themselves.** Claude Code's `auto` setting follows
+  the terminal only among its built-in themes; a custom theme always draws its own
+  base. Pick Critical Rhino Dark or Light in `/theme`, whichever matches the
+  terminal: plain text and code are in the terminal's own colors, so the light theme
+  in a dark terminal puts cream text on its pale backgrounds.
+- **Inside tmux**, Claude Code draws in 256 colors unless `CLAUDE_CODE_TMUX_TRUECOLOR`
+  is set, which rounds every color a theme sets. The README says to set it.
+
 ## Adding a tool
 
 Each theme has a builder in `scripts/build_<tool>.py` that reads the palette through
@@ -475,15 +542,16 @@ should:
   `make check`, and a line in `.gitattributes` marking its output as generated.
 
 Tools drawn in the terminal can reuse `build_ghostty.Terminal`, which draws a cell
-the way Ghostty does, and `build_ghostty.tool_main`, which the starship, fzf, lazygit
-and tmux builders share.
+the way Ghostty does, and `build_ghostty.tool_main`, which the starship, fzf, lazygit,
+tmux and Claude Code builders share.
 
 ## Screenshots
 
 `make screenshots` retakes the README's pictures, which the site shows too, from the
 current themes, so they can't drift from the palette. The terminal and lazygit pictures are the terminal
-audit's shell and commits scenes, and the VS Code pictures are its audit's explorer
-scene; each is copied only if its audit passes. The Neovim pictures come from the
+audit's shell and commits scenes, the VS Code pictures are its audit's explorer
+scene, and the Claude Code pictures are its audit's conversation in accept-edits
+mode; each is copied only if its audit passes. The Neovim pictures come from the
 Neovim config on your machine, with this checkout's theme, editing the same sample
 file the VS Code pictures show. Terminal captures are drawn as Ghostty would draw
 them, in Source Code Pro with Nerd Font symbols for icons, each glyph in a box as

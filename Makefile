@@ -23,9 +23,10 @@ REF ?= main
         setup doctor versions clean \
         derive \
         build site site\:compare logo nvim ghostty vscode vscode\:package vscode\:install \
-        starship fzf lazygit tmux screenshots \
+        starship fzf lazygit tmux claude-code screenshots \
         palette\:check logo\:check nvim\:check nvim\:audit ghostty\:check vscode\:check vscode\:audit \
-        starship\:check fzf\:check lazygit\:check tmux\:check terminal\:audit term\:test lint check
+        starship\:check fzf\:check lazygit\:check tmux\:check claude-code\:check terminal\:audit claude-code\:audit \
+        term\:test lint check
 
 #------------------------------------------------------------------------------
 # Help
@@ -94,9 +95,11 @@ doctor: ## Check Python is new enough, uv and ruff are at their pins, and the to
 		if command -v $$t >/dev/null; then ok "$$t"; \
 		else printf '  \033[33m--\033[0m    %s\n' "$$t not installed (terminal:audit skips what's missing; starship:check reads starship's defaults; tmux:check has tmux load its theme)"; fi; \
 	done; \
+	if command -v claude >/dev/null; then ok "claude"; \
+	else printf '  \033[33m--\033[0m    %s\n' "claude not installed (only claude-code:audit uses it)"; fi; \
 	exit $$fail
 
-versions: ## Show Python, uv, ruff, Neovim, Ghostty, VS Code, Cursor, starship, fzf, lazygit and tmux versions
+versions: ## Show Python, uv, ruff, Neovim, Ghostty, VS Code, Cursor, starship, fzf, lazygit, tmux and Claude Code versions
 	@$(PYTHON) --version
 	@uv --version 2>/dev/null || echo "uv: not installed"
 	@if test -x $(RUFF); then $(RUFF) --version; else echo "ruff: not installed (run make setup)"; fi
@@ -108,6 +111,7 @@ versions: ## Show Python, uv, ruff, Neovim, Ghostty, VS Code, Cursor, starship, 
 	@fzf --version 2>/dev/null | sed 's/^/fzf /' || echo "fzf: not installed"
 	@lazygit --version 2>/dev/null | sed 's/.*, version=\([^,]*\),.*/lazygit \1/' || echo "lazygit: not installed"
 	@tmux -V 2>/dev/null || echo "tmux: not installed"
+	@claude --version 2>/dev/null | head -1 || echo "claude: not installed"
 
 clean: ## Remove ./bin and build/
 	rm -rf $(BIN) build
@@ -123,7 +127,7 @@ derive: ## Refresh derived hex values in palette.toml after changing a rule
 # Build
 #------------------------------------------------------------------------------
 
-build: site logo nvim ghostty vscode starship fzf lazygit tmux ## Build the site, the logo and every theme
+build: site logo nvim ghostty vscode starship fzf lazygit tmux claude-code ## Build the site, the logo and every theme
 
 site: ## Generate the site, build/site/ (the release workflow deploys it to GitHub Pages)
 	$(PYTHON) scripts/preview.py
@@ -134,7 +138,7 @@ site\:compare: ## The site plus a before/after section against REF (default main
 logo: ## Draw the logo, docs/images/{logo,icon}-{dark,light}.svg
 	$(PYTHON) scripts/logo.py
 
-screenshots: ## Retake the README's screenshots, docs/images/*.png (slow: runs the terminal and VS Code audits)
+screenshots: ## Retake the README's screenshots, docs/images/*.png (slow: runs the terminal, VS Code and Claude Code audits)
 	$(PYTHON) scripts/screenshots.py
 
 nvim: ## Generate the Neovim theme, lua/critical-rhino/{dark,light}.lua
@@ -163,6 +167,9 @@ lazygit: ## Generate the lazygit theme, extras/lazygit/critical-rhino.yml
 
 tmux: ## Generate the tmux theme, extras/tmux/critical-rhino.conf
 	$(PYTHON) scripts/build_tmux.py
+
+claude-code: ## Generate the Claude Code themes, extras/claude-code/themes/critical-rhino-{dark,light}.json
+	$(PYTHON) scripts/build_claude_code.py
 
 #------------------------------------------------------------------------------
 # Check
@@ -201,8 +208,14 @@ lazygit\:check: ## Check the lazygit theme is current and every pair reads
 tmux\:check: ## Check the tmux theme is current, every pair reads, and tmux accepts it
 	$(PYTHON) scripts/build_tmux.py --check
 
+claude-code\:check: ## Check the Claude Code themes are current, every pair reads, and diffs stay distinct
+	$(PYTHON) scripts/build_claude_code.py --check
+
 terminal\:audit: ## Measure what starship, fzf and lazygit really draw, in a private tmux (needs tmux)
 	$(PYTHON) scripts/audit_terminal.py
+
+claude-code\:audit: ## Measure what Claude Code really draws with the themes, replaying a made-up conversation (needs tmux and Claude Code)
+	$(PYTHON) scripts/audit_claude_code.py
 
 term\:test: ## Print every terminal color and check the terminal is drawing the theme's (run it in that terminal)
 	@$(PYTHON) scripts/term_test.py
@@ -211,4 +224,4 @@ lint: ## Lint scripts/ with pinned ruff
 	@test -x $(RUFF) || (echo "Run 'make setup' to install ruff" && exit 1)
 	$(RUFF) check scripts/
 
-check: palette\:check logo\:check nvim\:check ghostty\:check vscode\:check starship\:check fzf\:check lazygit\:check tmux\:check lint ## Run every check (needs make setup)
+check: palette\:check logo\:check nvim\:check ghostty\:check vscode\:check starship\:check fzf\:check lazygit\:check tmux\:check claude-code\:check lint ## Run every check (needs make setup)

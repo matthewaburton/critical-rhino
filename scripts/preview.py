@@ -277,6 +277,7 @@ SCREENSHOTS = (
     ("vscode", "VS Code", "Python in VS Code"),
     ("terminal", "Ghostty with starship", "A shell in Ghostty with a starship prompt"),
     ("lazygit", "lazygit", "lazygit"),
+    ("claude-code", "Claude Code", "A conversation in Claude Code"),
 )
 
 
@@ -551,7 +552,7 @@ def hero(data: dict, infos: dict[str, Variant], canonical: dict[str, str], known
       <div class="actions">
         <a class="btn" href="#install">Install</a>
         <a class="btn quiet" href="{rhino.REPO_URL}">Source on GitHub</a>
-        <p>For Neovim, VS Code and Cursor, Ghostty, starship, fzf, lazygit and tmux.</p>
+        <p>For Neovim, VS Code and Cursor, Ghostty, starship, fzf, lazygit, tmux and Claude Code.</p>
       </div>
     </div>
     <dl class="specs">
@@ -620,8 +621,8 @@ def screenshots_section() -> str:
   <div class="intro">
     <p class="eyebrow">01 · Screenshots</p>
     <h2 id="h-screenshots">In the real apps</h2>
-    <p>Neovim and VS Code editing the same file, a shell in Ghostty with a starship prompt, and lazygit,
-    each captured from the current themes. Switch the page between Dark and Light to see both variants.</p>
+    <p>Neovim and VS Code editing the same file, a shell in Ghostty with a starship prompt, lazygit and
+    Claude Code, each captured from the current themes. Switch the page between Dark and Light to see both variants.</p>
   </div>
   {tabs_pane("shot", "App", panels, "shots-pane")}
 </section>"""
@@ -676,6 +677,14 @@ def install_section(known: set[str]) -> str:
          ("It sets only colors: the status bar, borders, messages, the copy-mode selection and search matches. "
          "Layout and status-line contents stay yours."),
          [clone, ("~/.tmux.conf", f"«keyword|source-file» {home}/tmux/critical-rhino.conf")]),
+        ("claude-code", "Claude Code",
+         ("Link the themes into Claude Code's themes folder, then pick <b>Critical Rhino Dark</b> or "
+         "<b>Critical Rhino Light</b> in <code>/theme</code>, whichever matches the terminal: plain text and code "
+         "are drawn in the terminal's own colors. A custom theme doesn't follow the desktop, so switch with "
+         "<code>/theme</code> when it does. Inside tmux, let Claude Code use full color."),
+         [clone, ("Terminal", ("mkdir -p ~/.claude/themes\n"
+                               f"ln -s {home}/claude-code/themes/critical-rhino-*.json ~/.claude/themes/")),
+          ("~/.bashrc, inside tmux", "«keyword|export» CLAUDE_CODE_TMUX_TRUECOLOR=1")]),
     ]
     panels = []
     for key, tab, note, snippets in tools:

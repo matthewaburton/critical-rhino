@@ -43,6 +43,11 @@ for text and 3:1 for dim text and marks, and where it can be, in the real app.
     <td><img src="docs/images/lazygit-dark.png" alt="lazygit, dark"></td>
     <td><img src="docs/images/lazygit-light.png" alt="lazygit, light"></td>
   </tr>
+  <tr><th colspan="2">Claude Code</th></tr>
+  <tr>
+    <td><img src="docs/images/claude-code-dark.png" alt="A conversation in Claude Code, dark"></td>
+    <td><img src="docs/images/claude-code-light.png" alt="A conversation in Claude Code, light"></td>
+  </tr>
 </table>
 
 ## What's included
@@ -53,6 +58,7 @@ for text and 3:1 for dim text and marks, and where it can be, in the real app.
 | [VS Code and Cursor](#vs-code-and-cursor) | `extras/vscode/` | Follows the desktop, with `window.autoDetectColorScheme` |
 | [Ghostty](#ghostty) 1.3+ | `extras/ghostty/` | Follows the desktop |
 | [starship](#starship), [fzf](#fzf), [lazygit](#lazygit), [tmux](#tmux) | `extras/<tool>/` | Follow the terminal: they draw in its 16 colors |
+| [Claude Code](#claude-code) | `extras/claude-code/` | Doesn't switch: pick Dark or Light in `/theme` |
 
 The terminal tools' themes work in any terminal. They're measured against Ghostty
 with this theme; in a terminal with another palette, they draw in that palette's
@@ -200,11 +206,39 @@ source-file ~/critical-rhino/extras/tmux/critical-rhino.conf
 It sets only colors: the status bar, borders, messages, the copy-mode selection and
 search matches. Layout and status-line contents stay yours.
 
+### Claude Code
+
+Link the themes into Claude Code's themes folder, so they update when you pull:
+
+```sh
+mkdir -p ~/.claude/themes
+ln -s ~/critical-rhino/extras/claude-code/themes/critical-rhino-*.json ~/.claude/themes/
+```
+
+Then pick **Critical Rhino Dark** or **Critical Rhino Light** in `/theme`, whichever
+matches the terminal: plain text and code are drawn in the terminal's own colors, so
+the light theme in a dark terminal doesn't read, nor the dark one in a light terminal.
+A custom theme doesn't follow the terminal by itself, so switch with `/theme` when the
+desktop does. If `~/.claude/themes` didn't exist before, restart Claude Code first.
+
+Code is drawn in the terminal's colors, Critical Rhino's in Ghostty, but Claude Code
+decides which color each kind of code takes, so it doesn't match the editors:
+keywords are blue and function names yellow, for example. To have code blocks and
+diffs in the text color instead, press Ctrl+T in `/theme` to turn highlighting off.
+
+Inside tmux, Claude Code rounds every color to the nearest of 256 unless you let it
+use full color:
+
+```sh
+# ~/.bashrc
+export CLAUDE_CODE_TMUX_TRUECOLOR=1
+```
+
 ## How it's checked
 
 Every theme has a check that measures each color it sets against every background
 it's drawn on, and refuses to write a theme that fails. `make check` runs them all.
-Three audits go further and measure what the real apps draw:
+Four audits go further and measure what the real apps draw:
 
 - `make nvim:audit` starts your own Neovim config headless with the theme and
   measures every highlight group your plugins define.
@@ -213,6 +247,9 @@ Three audits go further and measure what the real apps draw:
   every icon against the pixels behind it.
 - `make terminal:audit` runs starship, fzf and lazygit in a private tmux and measures
   every character they draw, as Ghostty would draw it.
+- `make claude-code:audit` has Claude Code replay a made-up conversation in a private
+  tmux, with none of your settings, sign-in or model calls, and measures every
+  character in each permission mode, the menus and with highlighting off.
 
 A few things the tools hard-code are out of a theme's reach. Those are measured and
 listed, not hidden: see [the design notes](docs/design.md), which also explain every

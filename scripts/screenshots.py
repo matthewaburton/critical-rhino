@@ -1,7 +1,7 @@
 """Retake the README's screenshots, docs/images/<picture>-{dark,light}.png, from this checkout's themes.
 
     python3 scripts/screenshots.py                  # all of them
-    python3 scripts/screenshots.py neovim lazygit   # some: neovim, vscode, terminal, lazygit
+    python3 scripts/screenshots.py neovim lazygit   # some: neovim, vscode, terminal, lazygit, claude-code
 
     neovim    The Neovim config on this machine (a lazy.nvim setup such as LazyVim, as
               make nvim:audit uses) with this checkout's theme, editing the sample app.py
@@ -10,13 +10,14 @@
     terminal  The shell scene from make terminal:audit: starship prompts over ls, git,
               grep and every text color.
     lazygit   The commits view from make terminal:audit.
+    claude-code  The conversation from make claude-code:audit, in accept-edits mode.
 
 The audits measure what they capture, and the pictures are copied only if the audit
 passes. Neovim's are measured by make nvim:check and nvim:audit instead: a picture
 of the editor includes decoration, such as indent guides, held to no minimum.
 
-Needs tmux and Chrome or Chromium; vscode needs VS Code, and neovim needs Neovim with
-a lazy.nvim config.
+Needs tmux and Chrome or Chromium; vscode needs VS Code, neovim needs Neovim with a
+lazy.nvim config, and claude-code needs Claude Code.
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ import tempfile
 import time
 from pathlib import Path
 
+import audit_claude_code
 import audit_nvim
 import audit_terminal
 import audit_vscode
@@ -38,7 +40,7 @@ import rhino
 
 OUT = rhino.ROOT / "docs" / "images"
 HERE = Path(__file__).resolve().parent
-PICTURES = ("neovim", "vscode", "terminal", "lazygit")
+PICTURES = ("neovim", "vscode", "terminal", "lazygit", "claude-code")
 NVIM_SIZE = (130, 36)   # the sample file, the status line and the command line
 # The README's bufferline snippet, run again: the config set bufferline up at startup,
 # possibly with another checkout's theme.
@@ -126,6 +128,10 @@ def main() -> int:
         run("audit_vscode.py", *(f"code:{v}" for v in variants))
         for v in variants:
             copy(audit_vscode.OUT / f"code-{v}-explorer.png", f"vscode-{v}.png")
+    if "claude-code" in wanted:
+        run("audit_claude_code.py", "--shots")
+        for v in variants:
+            copy(audit_claude_code.OUT / f"{audit_claude_code.PICTURE}-{v}.png", f"claude-code-{v}.png")
     if "neovim" in wanted:
         neovim(terms)
     return 0

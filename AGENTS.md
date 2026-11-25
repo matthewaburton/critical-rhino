@@ -6,12 +6,12 @@ file. Read it before changing anything.
 ## What this is
 
 Critical Rhino is a warm color scheme, dark and light, for Neovim, VS Code and Cursor,
-Ghostty, starship, fzf, lazygit and tmux. `palette.toml` is the source of truth: the
-scripts in `scripts/` generate every theme from it and check each color against every
-surface it's drawn on. The [README](README.md) is for people using the themes;
-[`docs/design.md`](docs/design.md) explains every color choice and how each tool's
-theme is built. Read the design notes' section for a tool before changing its colors
-or its builder.
+Ghostty, starship, fzf, lazygit, tmux and Claude Code. `palette.toml` is the source of
+truth: the scripts in `scripts/` generate every theme from it and check each color
+against every surface it's drawn on. The [README](README.md) is for people using the
+themes; [`docs/design.md`](docs/design.md) explains every color choice and how each
+tool's theme is built. Read the design notes' section for a tool before changing its
+colors or its builder.
 
 ## Layout
 
@@ -62,7 +62,8 @@ scripts/preview.py        the site (build/site/), which the release workflow dep
 | `make nvim:audit` | After changing the Neovim theme. Needs nvim and a lazy.nvim config |
 | `make vscode:audit` | After changing the VS Code theme. Needs VS Code or Cursor |
 | `make terminal:audit` | After changing terminal colors or the starship, fzf, lazygit or tmux themes. Needs tmux |
-| `make screenshots` | After a change that shows in the README's pictures. Slow: runs the terminal and VS Code audits |
+| `make claude-code:audit` | After changing terminal colors or the Claude Code themes. Needs tmux and Claude Code |
+| `make screenshots` | After a change that shows in the README's pictures. Slow: runs the terminal, VS Code and Claude Code audits |
 | `make site` | To preview the site: open `build/site/index.html` |
 
 `make doctor` reports which tools are installed. CI runs `make check` on every push

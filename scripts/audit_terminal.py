@@ -160,16 +160,19 @@ def measure(scene: str, rows: list[list[tuple[str, Style]]], term: build_ghostty
 # --- driving tmux --------------------------------------------------------------------
 
 class Tmux:
-    """A private tmux server with one pane."""
+    """A private tmux server with one pane. With `env`, the server starts with only that
+    environment, so nothing else from the caller's reaches the pane."""
 
-    def __init__(self, work: Path, cols: int, rows: int) -> None:
+    def __init__(self, work: Path, cols: int, rows: int, socket: str = SOCKET,
+                 env: dict[str, str] | None = None, options: str = "") -> None:
         conf = work / "tmux.conf"
-        conf.write_text("set -g status off\nset -g default-terminal tmux-256color\nset -sg escape-time 0\n")
-        self.base = ["tmux", "-L", SOCKET, "-f", str(conf)]
+        conf.write_text("set -g status off\nset -g default-terminal tmux-256color\nset -sg escape-time 0\n" + options)
+        self.base = ["tmux", "-L", socket, "-f", str(conf)]
         self.size = (cols, rows)
+        self.env = env
 
     def run(self, *args: str) -> str:
-        out = subprocess.run(self.base + list(args), capture_output=True, text=True, check=False)
+        out = subprocess.run(self.base + list(args), capture_output=True, text=True, check=False, env=self.env)
         if out.returncode != 0:
             raise RuntimeError(f"tmux {args[0]} failed (exit {out.returncode}): {out.stderr.strip() or out.stdout.strip()}")
         return out.stdout
@@ -190,9 +193,9 @@ class Tmux:
     def stop(self) -> None:
         """Kill the server and wait until it's gone: kill-server returns while it's still
         exiting, and a session started then can reach the dying server and fail."""
-        subprocess.run(self.base + ["kill-server"], capture_output=True, check=False)
+        subprocess.run(self.base + ["kill-server"], capture_output=True, check=False, env=self.env)
         for _ in range(100):
-            if subprocess.run(self.base + ["list-sessions"], capture_output=True, check=False).returncode != 0:
+            if subprocess.run(self.base + ["list-sessions"], capture_output=True, check=False, env=self.env).returncode != 0:
                 return
             time.sleep(0.05)
 
@@ -507,14 +510,19 @@ def main() -> int:
                             print(f"   {view} [{name}]: {n} runs, {len(found)} below their minimum")
             finally:
                 tmux.stop()
+    return summarize(failures, total, label, args.verbose)
+
+
+def summarize(failures: list[Finding], total: int, label: str, verbose: bool) -> int:
+    """Print the findings, worst first, grouped by view and style. Returns the exit code."""
     seen = {}
     for f in failures:
         key = (f.scene, f.variant, f.style)
         seen.setdefault(key, []).append(f)
     for (scene, variant, style), group in sorted(seen.items(), key=lambda kv: kv[1][0].ratio):
         f = group[0]
-        texts = ", ".join(repr(g.text[:30]) for g in group[: (None if args.verbose else 3)])
-        more = f" (+{len(group) - 3} more)" if len(group) > 3 and not args.verbose else ""
+        texts = ", ".join(repr(g.text[:30]) for g in group[: (None if verbose else 3)])
+        more = f" (+{len(group) - 3} more)" if len(group) > 3 and not verbose else ""
         print(f"- {scene} [{variant}] {f.ratio:.2f}:1 < {f.minimum:g}: {texts}{more}  {style_name(style)}")
     if failures:
         print(f"{len(failures)} of {total} runs are below their minimum ({label}).")

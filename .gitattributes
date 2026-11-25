@@ -11,5 +11,6 @@ extras/starship/*              linguist-generated
 extras/fzf/*                   linguist-generated
 extras/lazygit/*               linguist-generated
 extras/tmux/*                  linguist-generated
+extras/claude-code/themes/*    linguist-generated
 docs/images/logo-*.svg         linguist-generated
 docs/images/icon-*.svg         linguist-generated
