@@ -1079,7 +1079,7 @@ h1 { font: 850 clamp(3.4rem, 11.5vw, 8rem)/.9 var(--sans); font-stretch: 125%; l
 .wb-act i.on { border-color: var(--ui-foreground); }
 .wb-act b {
   position: absolute; right: -9px; bottom: -8px; min-width: 16px; padding: 0 4px; border-radius: 8px;
-  background: var(--ui-badge); color: var(--on-badge, var(--fg)); font: 600 9px/16px var(--sans); text-align: center;
+  background: var(--ui-selection); color: var(--on-selection); font: 600 9px/16px var(--sans); text-align: center;
 }
 .wb-side { background: var(--ui-surface); padding-block: 10px; }
 .wb-head { padding: 0 14px 8px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--ui-muted_foreground); }
