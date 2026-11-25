@@ -238,8 +238,8 @@ make site            # just the site: open build/site/index.html
 
 Releases are annotated `vX.Y.Z` tags. Pushing one runs the checks again, publishes
 the release with the VS Code extension attached, deploys the site and publishes the
-extension to the Visual Studio Marketplace; [AGENTS.md](AGENTS.md) has the steps and
-the numbering rules.
+extension to the Visual Studio Marketplace and Open VSX; [AGENTS.md](AGENTS.md) has
+the steps and the numbering rules.
 
 | Path | What it is |
 |---|---|
