@@ -36,7 +36,7 @@ DESCRIPTION = ("A warm color scheme for editors and terminals, in dark and light
                "sets is measured on every surface it's drawn on.")
 # Google Search Console checks for this tag on the home page to confirm who owns the
 # site, and keeps checking: removing it drops the site's verification.
-GOOGLE_SITE_VERIFICATION = "HXY2H8T_S8hxtPYDOTLM9YsMuG43a_4o2Q7j0cDauk8"
+GOOGLE_SITE_VERIFICATION = "476qkySh70HAUNNAgyxxUmKz4QdnfRAM2VFAeCfqVHE"
 TOKEN_RE = re.compile(r"«([\w+]+)\|(.*?)»", re.DOTALL)
 VARIANTS = ("dark", "light")
 DISPLAY_NAMES = {"gray_dark": "Gray (Dark)", "gray_light": "Gray (Light)", "red_muted": "Red (Muted)",
