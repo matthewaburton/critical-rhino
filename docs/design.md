@@ -484,8 +484,10 @@ as for the tools above.
   highlighted: their code is faint, at 3:1, with the line number and marker in bright
   red. In a terminal with another palette, code follows that palette.
 - **Every token is a palette color.** The spinner, Claude's name and the logo are
-  orange; permission prompts and suggestions blue; plan mode cyan; accept-edits and
-  the bash border purple; successes, errors and warnings green, red
+  orange; permission prompts, suggestions and the selected tab and option in a
+  question are the slate blue, the terminal's blue, which keeps a selection in the
+  scheme's own color rather than the editors' brighter focus blue; plan mode cyan;
+  accept-edits and the bash border purple; successes, errors and warnings green, red
   and yellow (auto mode's label is drawn in the warning color). Dim text is the
   terminal's white, secondary text at 4.5:1, also when it's drawn faint, at 3:1. The
   prompt's rules and dividers are bright black at 3:1. Your messages and bash

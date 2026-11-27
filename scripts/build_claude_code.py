@@ -110,7 +110,7 @@ INK: dict[str, tuple[str, float, tuple[str, ...]]] = {
     "bashBorder": ("readable.purple", T, ON_BG + ("bashMessageBackgroundColor",)),
     "claude": ("readable.orange", T, ON_BG),
     "claudeBlue_FOR_SYSTEM_SPINNER": ("readable.blue", T, ON_BG),
-    "permission": ("readable.blue_accent_1", T, ON_BG),
+    "permission": ("readable.blue", T, ON_BG),
     "planMode": ("readable.cyan", T, ON_BG),
     "ide": ("readable.blue", T, ON_BG),
     "promptBorder": ("dim", M, ON_BG),
@@ -118,7 +118,7 @@ INK: dict[str, tuple[str, float, tuple[str, ...]]] = {
     "inverseText": ("background", T, ()),      # on every accent; see pairs()
     "inactive": ("muted", T, ON_BG + ("userMessageBackground",)),
     "subtle": ("dim", M, ON_BG),
-    "suggestion": ("readable.blue_accent_1", T, ON_BG),
+    "suggestion": ("readable.blue", T, ON_BG),
     "remember": ("readable.blue", T, ON_BG),
     "background": ("readable.cyan", T, ON_BG),   # an accent, despite the name
     "success": ("readable.green", T, ON_BG),
@@ -136,7 +136,7 @@ INK: dict[str, tuple[str, float, tuple[str, ...]]] = {
     "professionalBlue": ("readable.blue", T, ON_BG),
     "chromeYellow": ("readable.yellow", T, ON_BG),
     "clawd_body": ("readable.orange", M, ON_BG + ("clawd_background",)),
-    "rate_limit_fill": ("readable.blue_accent_1", M, ON_BG),
+    "rate_limit_fill": ("readable.blue", M, ON_BG),
     "rate_limit_empty": ("dim", M, ON_BG),
     "fastMode": ("readable.orange", T, ON_BG),
     "effortUltra": ("readable.purple", T, ON_BG),
