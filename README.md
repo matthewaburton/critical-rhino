@@ -249,7 +249,8 @@ Four audits go further and measure what the real apps draw:
   every character they draw, as Ghostty would draw it.
 - `make claude-code:audit` has Claude Code replay a made-up conversation in a private
   tmux, with none of your settings, sign-in or model calls, and measures every
-  character in each permission mode, the menus and with highlighting off.
+  character in each permission mode, the menus, the `/diff` panel and with
+  highlighting off.
 
 A few things the tools hard-code are out of a theme's reach. Those are measured and
 listed, not hidden: see [the design notes](docs/design.md), which also explain every

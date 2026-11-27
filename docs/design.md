@@ -466,42 +466,56 @@ background, so `make claude-code:check` measures every pair the way Ghostty draw
 as for the tools above.
 
 - **Code takes the terminal's colors, in Claude Code's own scheme.** No token colors
-  code, and nothing chooses which color each kind of code takes: Claude Code
-  highlights it in a fixed scheme that the base picks (Monokai under its dark theme,
-  GitHub's under light, neither of which reads at 4.5:1 throughout on Critical Rhino's
-  backgrounds), and only lets you turn highlighting off (Ctrl+T in `/theme`, which
-  leaves code blocks and diffs in the text color). Both themes start from the
-  ANSI bases, whose schemes use the terminal's own colors, so in Ghostty code is in
-  Critical Rhino's colors, though not in the editors' roles. Code blocks use the
-  normals: strings red and comments green, as in the editors, but keywords and inline
-  code blue (bright blue in dark), function names yellow, types and built-ins cyan,
-  decorators bright black at 3:1. Diffs are highlighted in the brights, at 3:1:
+  code, and nothing chooses which color each kind of code takes, and Claude Code only
+  lets you turn highlighting off (Ctrl+T in `/theme`, which leaves code blocks and
+  diffs in the text color). Code blocks are always in the terminal's colors. The base
+  picks how diffs and inline code are drawn: its dark and light bases highlight diffs
+  in Monokai and GitHub's colors, which don't read at 4.5:1 on Critical Rhino's
+  backgrounds (Monokai's keywords 4.3:1 and comments 3.3:1, GitHub's blue 3.6:1 and
+  comments 2.5:1), and draw inline code in a fixed blue (3.8:1 in light). Both themes
+  start from the ANSI bases, which use the terminal's own colors throughout, so in
+  Ghostty code is in Critical Rhino's colors, though not in the editors' roles. Code
+  blocks use the normals: strings red and comments green, as in the editors, but
+  keywords and inline code blue (bright blue in dark), function names yellow, types
+  and built-ins cyan, decorators bright black at 3:1. Diffs are highlighted in the
+  brights, at 3:1:
   strings bright green, keywords and types bright cyan, names bright yellow, with the
   code text in the terminal's white (dark) or black (light). Removed lines aren't
   highlighted: their code is faint, at 3:1, with the line number and marker in bright
   red. In a terminal with another palette, code follows that palette.
 - **Every token is a palette color.** The spinner, Claude's name and the logo are
   orange; permission prompts and suggestions blue; plan mode cyan; accept-edits and
-  the bash border purple; successes, errors and warnings green, red and yellow (auto
-  mode's label is drawn in the warning color). Dim text is the terminal's white,
-  secondary text at 4.5:1, also when it's drawn faint, at 3:1. The prompt's rules
-  and dividers are bright black at 3:1. Your messages and bash commands sit on the
-  side bar's surface. Shimmers fade toward the text color, so both ends of every fade
-  read. The subagent and rainbow colors are the readable accents, and
-  `inverseText`, text on a colored fill, is the background color, which reads on
-  every accent.
+  the bash border purple; successes, errors and warnings green, red
+  and yellow (auto mode's label is drawn in the warning color). Dim text is the
+  terminal's white, secondary text at 4.5:1, also when it's drawn faint, at 3:1. The
+  prompt's rules and dividers are bright black at 3:1. Your messages and bash
+  commands sit on the side bar's surface; the `/diff` panel sits on the background,
+  since its diff's line numbers are faint and the surface would take them under
+  3:1. Shimmers fade toward the text color, so both ends of every fade read. The
+  subagent and rainbow colors are the readable accents, and `inverseText`, text on a
+  colored fill, is the background color, which reads on every accent.
+- **The `+N -M` counts are the base's bright green and red.** Claude Code draws the
+  counts (`/diff`, "edited N files", commit summaries, a pull request's status) in
+  the same two tokens it fills changed words with inside a diff, and no color is both
+  text on the background and a fill under code. The themes leave both to the ANSI
+  base: the counts read at 3:1 like the diff brights (9.5:1 in dark), and highlighted
+  diffs cut changed words out of their line onto the terminal's background. With
+  highlighting off, Claude Code fills changed words with those bright colors under
+  the text color (1.5:1 in dark, 3.8:1 in light); that's Claude Code's own, and the
+  audit counts it without failing it.
 - **Diff backgrounds come from the 256-color palette.** Under the ANSI bases Claude
-  Code draws them from it, so the themes name entries rather than let it round a
-  palette color. Diff code text has to stay at 4.5:1 on them, the brights at 3:1 and
-  a removed line's faint code at 3:1. In dark that leaves navy (`ansi256(17)`) for
-  added lines, as in Claude Code's colorblind-friendly theme (no green is dark
-  enough), and for removed lines a near-black (`232`) a step darker than the
-  background (under faint code, no red is dark enough). Light takes the palest cyan
-  (`159`), to match, and pink (`224`). Changed words are
-  cut out in the terminal's extreme, black in dark and white in light, since no
-  stronger tint keeps the code readable. Added and removed lines, and words and their
-  lines, stay 0.08 apart in OKLab, the palette's rule for telling syntax colors
-  apart.
+  Code rounds them to it, even when highlighting is on and the theme gives an exact
+  color (the editors' warm diff tints come out flat gray), so the themes name entries
+  rather than let it round. Diff code text has to stay at 4.5:1 on them, the brights
+  at 3:1 and a removed line's faint code at 3:1. Diff code is the terminal's white
+  in dark, and under it only navy and black are dark enough, so dark diffs are bars
+  without a hue: added lines near-black (`ansi256(232)`), removed lines black
+  (`16`), told apart by their bright green and red markers and line numbers and the
+  removed line's faint code. Light takes a pale lime (`193`), the entry nearest
+  Critical Rhino's green, and a pale orchid (`225`), the only reddish entry that
+  keeps the red marker at 3:1 and stands apart from the background. Added and
+  removed lines, and each line and the background its changed words are cut out
+  onto, stay 0.08 apart in OKLab, the palette's rule for telling syntax colors apart.
 - **Where each token lands was measured** in Claude Code 2.1.332, with a probe theme
   that gives every token its own color: the prompt's rules, dividers, dim text (plain,
   faint, bold and italic), the spinner fading between its two colors, a permission
@@ -511,11 +525,13 @@ as for the tools above.
 - **`make claude-code:audit` measures what Claude Code really draws.** It builds a
   throwaway home holding only the themes and a made-up conversation (a file read, an
   edit and its diff, a test run, an answer with a code block and a list, a bash
-  command), and has Claude Code resume it in a private tmux whose server starts with
-  a bare environment: none of your settings, plugins, sign-in or API key reach it,
-  and nothing goes to a model. It captures the conversation in each permission mode,
-  the slash-command menu, `/theme` with its preview, and the conversation again with
-  highlighting off, and measures every character as the terminal audit does.
+  command) in a git repository with the edit uncommitted, and has Claude Code resume
+  it in a private tmux whose server starts with a bare environment: none of your
+  settings, plugins, sign-in or API key reach it, and nothing goes to a model. It
+  captures the conversation in each permission mode, the slash-command menu,
+  `/theme` with its preview, the `/diff` panel with its file list clicked open (the
+  counts and the diff), and the conversation again with highlighting off, and
+  measures every character as the terminal audit does.
 - **Dark and light don't switch by themselves.** Claude Code's `auto` setting follows
   the terminal only among its built-in themes; a custom theme always draws its own
   base. Pick Critical Rhino Dark or Light in `/theme`, whichever matches the

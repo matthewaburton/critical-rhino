@@ -25,13 +25,22 @@ red. Other line numbers are faint too.
 Every token is set to an exact color except the diff backgrounds: under the ANSI bases
 Claude Code draws those from the 256-color palette, so the themes name entries from it
 rather than let it round. Code text on them has to reach 4.5:1, the brights 3:1 and a
-removed line's faint code 3:1. In dark that leaves the darkest navy for added lines (no
-green is dark enough) and, for removed lines, a near-black a step darker than the
-background (no red is dark enough under faint code); light takes the palest cyan, to
-match, and pink. Changed words are cut out in the terminal's extreme, black in dark and
-white in light, since no stronger tint keeps the code readable. Added and removed
-lines, and words and their lines, stay 0.08 apart in OKLab, the palette's rule for
-telling syntax colors apart.
+removed line's faint code 3:1. In dark only navy and black are dark enough under the
+terminal's white, so both lines are dark bars without a hue, added a near-black and
+removed black, told apart by their bright green and red markers and line numbers.
+Light takes a pale lime, the entry nearest Critical Rhino's green, and a pale orchid,
+the only reddish entry that keeps the red marker at 3:1 and stands apart from the
+background. Added and removed lines, and each line and the background, stay 0.08
+apart in OKLab, the palette's rule for telling syntax colors apart.
+
+Two tokens are left to the base: diffAddedWord and diffRemovedWord. Claude Code draws
+the +N -M counts in them (/diff, the "edited N files" summaries, commit summaries) and
+also fills changed words in a diff with them, and no color is both text on the
+background and a fill under code. Left unset, the counts take the ANSI base's bright
+green and red (3:1, like the diff brights), and highlighted diffs (the default) draw
+changed words on the terminal's own background, cut out of their line. With
+highlighting off, Claude Code fills changed words with those
+bright colors under the text color; that's listed as Claude Code's own.
 
 Where each token lands was measured in Claude Code 2.1.332 (a probe theme with a
 unique color per token): the prompt rules (promptBorder), dividers (subtle), dim text
@@ -83,7 +92,8 @@ TOKENS = (
 FILLS = {
     "userMessageBackground": "surface",        # your messages
     "userMessageBackgroundHover": "raised",    # a message or list row under the pointer
-    "composerSidebarBackground": "surface",    # fullscreen
+    "composerSidebarBackground": "background",  # the /diff panel, fullscreen's side bar: its diff
+                                                # line numbers are faint, under 3:1 on the surface
     "selectionBg": "selection",                # fullscreen: selected text keeps its colors
     "bashMessageBackgroundColor": "surface",   # bash commands (! mode)
     "memoryBackgroundColor": "surface",
@@ -150,12 +160,16 @@ SHIMMERS = {
 for _shimmer, _of in SHIMMERS.items():
     INK[_shimmer] = ("foreground", INK[_of][1], INK[_of][2])
 
-# Diff backgrounds: entries of the 256-color palette (see the module docstring).
-# (line, changed words). The dimmed lines keep the line's color.
+# Diff backgrounds: entries of the 256-color palette (see the module docstring). The
+# dimmed lines keep the line's color.
 DIFFS = {
-    "dark": {"added": (17, 16), "removed": (232, 16)},     # navy, near-black; words on black
-    "light": {"added": (159, 231), "removed": (224, 231)},  # pale cyan, pink; words on white
+    "dark": {"added": 232, "removed": 16},     # near-black, black
+    "light": {"added": 193, "removed": 225},   # pale lime, pale orchid
 }
+# Tokens left to the ANSI base, as the terminal palette indices it draws them in: the
+# +N -M counts, and changed words when highlighting is off.
+FROM_BASE = {"diffAddedWord": 10, "diffRemovedWord": 9}   # ansi:greenBright, ansi:redBright
+COUNTS_ON = ON_BG + ("composerSidebarBackground",)        # the /diff panel
 # What Claude Code 2.1.332 draws under the ANSI bases, as terminal palette indices
 # (measured). On a diff line: code text, scopes in the brights, and the markers.
 DIFF_TEXT = {"dark": 7, "light": 0}
@@ -195,9 +209,9 @@ def color(v: rhino.Variant, source: str) -> str:
 
 def diff_entries(name: str) -> dict[str, int]:
     out = {}
-    for kind, (line, word) in DIFFS[name].items():
+    for kind, line in DIFFS[name].items():
         k = kind.capitalize()
-        out |= {f"diff{k}": line, f"diff{k}Dimmed": line, f"diff{k}Word": word}
+        out |= {f"diff{k}": line, f"diff{k}Dimmed": line}
     return out
 
 
@@ -206,6 +220,8 @@ def overrides(v: rhino.Variant) -> dict[str, str]:
     diffs = diff_entries(v.name)
     out = {}
     for token in TOKENS:
+        if token in FROM_BASE:
+            continue
         if token in diffs:
             out[token] = f"ansi256({diffs[token]})"
         elif token in FILLS:
@@ -236,18 +252,32 @@ def pairs(v: rhino.Variant) -> tuple[list[Pair], list[Pair]]:
     accents = sorted({t for t, (src, _, _) in INK.items() if src.startswith("readable.") or src == "pink"})
     for fill in accents:
         found.append(Pair(f"inverseText on {fill}", {"fg": values["inverseText"], "bg": values[fill]}, T))
-    for kind, (line, word) in DIFFS[v.name].items():
-        for part, bg in (("line", line), ("words", word)):
-            label = f"{kind} {part} (ansi256 {bg})"
-            found.append(Pair(f"code text on the {label}", {"fg": DIFF_TEXT[v.name], "bg": bg}, T))
-            # With highlighting off (Ctrl+T in /theme), a diff's code is in the text color.
-            found.append(Pair(f"text on the {label}", {"fg": values["text"], "bg": bg}, T))
-            if kind == "removed":   # a removed line's code is drawn faint
-                found.append(Pair(f"code text, faint, on the {label}",
-                                  {"fg": DIFF_TEXT[v.name], "bg": bg, "faint": True}, M))
-            found.append(Pair(f"{kind} marker on the {label}", {"fg": MARKERS[kind], "bg": bg}, M))
-            for scope, index in SCOPES:
-                found.append(Pair(f"{scope} on the {label}", {"fg": index, "bg": bg}, B))
+    for kind, line in DIFFS[v.name].items():
+        label = f"{kind} line (ansi256 {line})"
+        found.append(Pair(f"code text on the {label}", {"fg": DIFF_TEXT[v.name], "bg": line}, T))
+        # With highlighting off (Ctrl+T in /theme), a diff's code is in the text color.
+        found.append(Pair(f"text on the {label}", {"fg": values["text"], "bg": line}, T))
+        if kind == "removed":   # a removed line's code is drawn faint
+            found.append(Pair(f"code text, faint, on the {label}",
+                              {"fg": DIFF_TEXT[v.name], "bg": line, "faint": True}, M))
+        found.append(Pair(f"{kind} marker on the {label}", {"fg": MARKERS[kind], "bg": line}, M))
+        for scope, index in SCOPES:
+            found.append(Pair(f"{scope} on the {label}", {"fg": index, "bg": line}, B))
+    # Changed words, cut out of their line onto the terminal's background.
+    found.append(Pair("changed words: code text on the background", {"fg": DIFF_TEXT[v.name]}, T))
+    found.append(Pair("changed words: removed code, faint, on the background",
+                      {"fg": DIFF_TEXT[v.name], "faint": True}, M))
+    found += [Pair(f"changed words: {scope} on the background", {"fg": index}, B) for scope, index in SCOPES]
+    # The /diff panel's diff: faint line numbers on its fill.
+    found.append(Pair("diff line numbers, faint, on composerSidebarBackground",
+                      {"fg": DIFF_TEXT[v.name], "bg": values["composerSidebarBackground"], "faint": True}, M))
+    # The +N -M counts, in the base's brights.
+    for token, index in FROM_BASE.items():
+        sign = "+N" if "Added" in token else "-N"
+        for surface in COUNTS_ON:
+            under = None if surface == "terminal" else values[surface]
+            where = "the background" if surface == "terminal" else surface
+            found.append(Pair(f"{sign} count ({token}, from the base) on {where}", {"fg": index, "bg": under}, B))
     own = [Pair(f"code block {scope}", {"fg": index}, minimum) for scope, index, minimum in CODE_BLOCKS[v.name]]
     # Around the changes, on the terminal's background: faint line numbers, highlighted code.
     own.append(Pair("diff line numbers, faint", {"fg": DIFF_TEXT[v.name], "faint": True}, M))
@@ -255,23 +285,35 @@ def pairs(v: rhino.Variant) -> tuple[list[Pair], list[Pair]]:
     own += [Pair(f"diff context {scope}", {"fg": index}, B) for scope, index in SCOPES]
     # With highlighting off, a code block is plain text under its language, drawn faint.
     own.append(Pair("code block language, faint, highlighting off", {"faint": True}, M))
+    # With highlighting off, changed words are filled with the counts' colors.
+    own += [Pair(f"changed words, highlighting off: text on {token} (bright, from the base)",
+                 {"fg": values["text"], "bg": index}, T) for token, index in FROM_BASE.items()]
     return found, own
 
 
 def distinct(v: rhino.Variant) -> tuple[list[str], list[str]]:
-    """Added and removed lines, and words and their lines, must look different."""
+    """Added and removed lines, and each line and the changed words cut out of it onto
+    the terminal's background, must look different."""
     xt = build_ghostty.xterm
     d = DIFFS[v.name]
-    checks = [("added and removed lines", d["added"][0], d["removed"][0])]
-    checks += [(f"{kind} words and their line", line, word) for kind, (line, word) in d.items()]
+    checks = [("added and removed lines", xt(d["added"]), xt(d["removed"]))]
+    checks += [(f"{kind} line and the background (changed words)", xt(line), v.t("background"))
+               for kind, line in d.items()]
     errors, report = [], []
     for label, a, b in checks:
-        gap = rhino.distance(xt(a), xt(b))
+        gap = rhino.distance(a, b)
         below = gap < DISTINCT
         if below:
             errors.append(f"{v.name}: {label} are {gap:.3f} apart in OKLab, under {DISTINCT}")
         report.append(f"  {label:58s} {gap:5.3f} apart{f'  <- under {DISTINCT}' if below else ''}")
     return errors, report
+
+
+def own_style(text: str, style) -> bool:
+    """A run Claude Code draws that no setting reaches, which the audit measures but
+    doesn't fail: a changed word with highlighting off, the text color on the base's
+    bright green or red (see the module docstring)."""
+    return style.bg in FROM_BASE.values() and not isinstance(style.fg, int)
 
 
 TOKEN_VALUE = re.compile(r"^(#[0-9A-F]{6}|ansi256\((\d{1,3})\))$")
@@ -281,7 +323,7 @@ def validate(v: rhino.Variant) -> list[str]:
     """What Claude Code would drop without a word: unknown tokens, values it can't read."""
     errors = []
     values = overrides(v)
-    missing = set(TOKENS) - set(INK) - set(FILLS) - set(diff_entries(v.name))
+    missing = set(TOKENS) - set(INK) - set(FILLS) - set(diff_entries(v.name)) - set(FROM_BASE)
     errors += [f"{v.name}: no color for {t}" for t in sorted(missing)]
     for token, value in values.items():
         m = TOKEN_VALUE.match(value)

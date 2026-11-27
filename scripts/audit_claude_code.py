@@ -8,12 +8,15 @@ checkout's themes, and the tmux server starts with a bare environment: it never 
 your settings, plugins, sign-in or API key. Nothing goes to a model. Claude Code
 resumes a conversation written here, as it would one of yours: a file read, an edit
 and its diff, a test run, an answer with a code block and a list, and a bash command.
+The project is a git repository with the edit uncommitted, so /diff has a file to show.
 
 Each view is captured with its colors (capture-pane -e) and every character measured
 as Ghostty draws it, as make terminal:audit does: text at 4.5:1, faint text and rules
 at 3:1, brights asked for by number at their own minimum. The views, in each theme:
 the conversation in every permission mode (Shift+Tab cycles them), the slash-command
-menu, and /theme with its preview.
+menu, /theme with its preview, the /diff panel with its file list open (the +N -M
+counts and the diff), and the conversation with highlighting off. What Claude Code
+draws that no setting reaches (build_claude_code.own_style) is counted, not failed.
 """
 
 from __future__ import annotations
@@ -44,6 +47,7 @@ SESSION = "5e55a0de-0000-4000-8000-000000000001"
 OSC = re.compile(r"\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")   # hyperlinks, on file names
 SGR = re.compile(r"\x1b\[[0-9;:]*m")
 MENU_ROW = re.compile(r"^ +❯? +/[a-z-]+ {2,}\S", re.MULTILINE)   # a command and its description
+COUNTS = re.compile(r"herd\.py +\+1 -1")                           # the /diff panel's file row
 # Footer labels, in the order Shift+Tab reaches them from the default mode.
 MODES = {"manual mode on": "manual", "accept edits on": "accept-edits", "plan mode on": "plan",
          "auto mode on": "auto"}
@@ -132,6 +136,9 @@ def make_world(work: Path, variant: str, version: str) -> tuple[dict[str, str], 
     config = home / ".claude"
     project = home / "projects" / "rhino-app"
     project.mkdir(parents=True)
+    gitconfig = home / ".gitconfig"
+    gitconfig.write_text("[user]\n\tname = Ada Lovelace\n\temail = ada@example.com\n"
+                         "[init]\n\tdefaultBranch = main\n[commit]\n\tgpgsign = false\n")
     (config / "themes").mkdir(parents=True)
     for theme in sorted(build_claude_code.THEME_DIR.glob("critical-rhino-*.json")):
         shutil.copy(theme, config / "themes")
@@ -142,13 +149,18 @@ def make_world(work: Path, variant: str, version: str) -> tuple[dict[str, str], 
         "numStartups": 20, "autoUpdates": False, "installMethod": "native",
         "projects": {str(project): {"hasTrustDialogAccepted": True, "hasCompletedProjectOnboarding": True,
                                     "projectOnboardingSeenCount": 4}}}))
+    env = {"HOME": str(home), "PATH": os.environ["PATH"], "LANG": "C.UTF-8", "COLORTERM": "truecolor",
+           "GIT_CONFIG_GLOBAL": str(gitconfig), "GIT_CONFIG_NOSYSTEM": "1",
+           "CLAUDE_CONFIG_DIR": str(config), "CLAUDE_CODE_TMUX_TRUECOLOR": "1", "DISABLE_AUTOUPDATER": "1",
+           "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_TELEMETRY": "1"}
+    # The file as it was before the edit, committed; the conversation leaves the edit uncommitted.
+    (project / "herd.py").write_text(HERD)
+    for args in (("init", "-q"), ("add", "herd.py"), ("commit", "-q", "-m", "Count the herd")):
+        audit_terminal.git(project, env, *args)
     transcripts = config / "projects" / re.sub(r"[^A-Za-z0-9]", "-", str(project))
     transcripts.mkdir(parents=True)
     lines = "".join(json.dumps(e) + "\n" for e in conversation(project, version))
     (transcripts / f"{SESSION}.jsonl").write_text(lines)
-    env = {"HOME": str(home), "PATH": os.environ["PATH"], "LANG": "C.UTF-8", "COLORTERM": "truecolor",
-           "CLAUDE_CONFIG_DIR": str(config), "CLAUDE_CODE_TMUX_TRUECOLOR": "1", "DISABLE_AUTOUPDATER": "1",
-           "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1", "DISABLE_TELEMETRY": "1"}
     return env, project
 
 
@@ -169,6 +181,15 @@ def wait_for(tmux: audit_terminal.Tmux, ready: Callable[[str], bool], what: str,
     raise RuntimeError(f"Claude Code didn't show {what} within {timeout:g}s:\n{plain(tmux.capture())}")
 
 
+def click(tmux: audit_terminal.Tmux, label: str) -> None:
+    """Click the middle of a label on screen, as an SGR mouse press and release."""
+    screen = plain(tmux.capture()).splitlines()
+    row = next(i for i, line in enumerate(screen) if label in line)
+    col = screen[row].index(label) + len(label) // 2
+    at = f"{col + 1};{row + 1}"
+    tmux.keys("-l", f"\x1b[<0;{at}M\x1b[<0;{at}m", wait=0.3)
+
+
 def mode(screen: str) -> str | None:
     return next((name for label, name in MODES.items() if label in screen), None)
 
@@ -179,7 +200,7 @@ def resumed(screen: str) -> bool:
 
 
 def play(tmux: audit_terminal.Tmux) -> list[tuple[str, str]]:
-    """Every view: the conversation in each permission mode, the slash menu, /theme."""
+    """Every view: the conversation in each permission mode, the slash menu, /theme, /diff."""
     views = [("manual", wait_for(tmux, resumed, "the resumed conversation"))]
     for _ in MODES:
         before = views[-1][0]
@@ -200,17 +221,34 @@ def play(tmux: audit_terminal.Tmux) -> list[tuple[str, str]]:
     views.append(("theme-picker", wait_for(tmux, lambda s: "Critical Rhino Light" in s and "Syntax theme" in s,
                                            "the theme picker")))
     tmux.keys("Escape", wait=0.3)
+    # /diff opens a panel beside the conversation; its file list opens with a click.
+    tmux.keys("-l", "/diff", wait=0.3)
+    tmux.keys("Enter", wait=0.1)
+    wait_for(tmux, lambda s: "(show)" in s, "the /diff panel")
+    click(tmux, "(show)")
+    views.append(("diff-panel", wait_for(tmux, lambda s: bool(COUNTS.search(s)), "the /diff panel's file list")))
     return views
 
 
 # --- main ----------------------------------------------------------------------------
+
+def noting(own: list[str]) -> Callable[[str, audit_terminal.Style], bool]:
+    """Skip what Claude Code draws that no setting reaches, noting each run in `own`."""
+    def ignore(text: str, style: audit_terminal.Style) -> bool:
+        if build_claude_code.own_style(text, style):
+            own.append(text)
+            return True
+        return False
+    return ignore
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Measure what Claude Code draws with the themes, in a private tmux.")
     parser.add_argument("--shots", action="store_true", help="save each view to build/claude-code-audit/")
     parser.add_argument("--verbose", action="store_true", help="list every failing run, not just the first few")
     args = parser.parse_args()
-    for tool, why in (("tmux", "the audit runs Claude Code in a private tmux server"), ("claude", "it audits Claude Code")):
+    for tool, why in (("tmux", "the audit runs Claude Code in a private tmux server"), ("claude", "it audits Claude Code"),
+                      ("git", "the made-up project is a git repository, for /diff")):
         if not shutil.which(tool):
             print(f"{tool} isn't installed; {why}.")
             return 1
@@ -238,7 +276,8 @@ def main() -> int:
                 for view, capture in views:
                     capture = OSC.sub("", capture)
                     rows = audit_terminal.parse(capture)
-                    n, found = audit_terminal.measure(view, rows, term)
+                    own: list[str] = []
+                    n, found = audit_terminal.measure(view, rows, term, noting(own))
                     total += n
                     failures += found
                     if args.shots:
@@ -246,7 +285,8 @@ def main() -> int:
                         (OUT / f"{stem}.ans").write_text(capture, encoding="utf-8")
                         (OUT / f"{stem}.html").write_text(audit_terminal.to_html(rows, term), encoding="utf-8")
                         audit_terminal.screenshot(OUT / f"{stem}.html", OUT / f"{stem}.png", SIZE[0], len(rows))
-                    print(f"   {view} [{name}]: {n} runs, {len(found)} below their minimum")
+                    note = f"; {len(own)} Claude Code's own, not measured: {', '.join(map(repr, own))}" if own else ""
+                    print(f"   {view} [{name}]: {n} runs, {len(found)} below their minimum{note}")
             finally:
                 tmux.stop()
     return audit_terminal.summarize(failures, total, "theme", args.verbose)
