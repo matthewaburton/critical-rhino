@@ -34,6 +34,9 @@ SITE = rhino.ROOT / "build" / "site"
 IMAGES = rhino.ROOT / "docs" / "images"
 DESCRIPTION = ("A warm color scheme for editors and terminals, in dark and light, where every color the theme "
                "sets is measured on every surface it's drawn on.")
+# Google Search Console checks for this tag on the home page to confirm who owns the
+# site, and keeps checking: removing it drops the site's verification.
+GOOGLE_SITE_VERIFICATION = "HXY2H8T_S8hxtPYDOTLM9YsMuG43a_4o2Q7j0cDauk8"
 TOKEN_RE = re.compile(r"«([\w+]+)\|(.*?)»", re.DOTALL)
 VARIANTS = ("dark", "light")
 DISPLAY_NAMES = {"gray_dark": "Gray (Dark)", "gray_light": "Gray (Light)", "red_muted": "Red (Muted)",
@@ -1493,6 +1496,7 @@ def build(compare_ref: str | None = None) -> str:
 <title>{name}: a warm color scheme for editors and terminals</title>
 <meta name="description" content="{esc(DESCRIPTION)}">
 <link rel="canonical" href="{rhino.SITE_URL}">
+<meta name="google-site-verification" content="{GOOGLE_SITE_VERIFICATION}">
 <link rel="icon" href="icon-light.svg" type="image/svg+xml" media="(prefers-color-scheme: light)">
 <link rel="icon" href="icon-dark.svg" type="image/svg+xml" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="{light.bg}" media="(prefers-color-scheme: light)">
