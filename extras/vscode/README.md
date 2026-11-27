@@ -5,9 +5,9 @@ cream, with orange keywords, red strings, green comments, purple numbers and blu
 types. Every text color the theme sets is measured on every surface the editor draws
 it on, at 4.5:1 for text and 3:1 for dim text and marks.
 
-![Python in VS Code, dark](https://raw.githubusercontent.com/matthewaburton/critical-rhino/v1.1.0/docs/images/vscode-dark.png)
+![Python in VS Code, dark](https://raw.githubusercontent.com/matthewaburton/critical-rhino/v1.1.1/docs/images/vscode-dark.png)
 
-![Python in VS Code, light](https://raw.githubusercontent.com/matthewaburton/critical-rhino/v1.1.0/docs/images/vscode-light.png)
+![Python in VS Code, light](https://raw.githubusercontent.com/matthewaburton/critical-rhino/v1.1.1/docs/images/vscode-light.png)
 
 ## Use it
 

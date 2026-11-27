@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parent.parent
 PALETTE_PATH = ROOT / "palette.toml"
 # The scheme's version: one for every theme, the VS Code extension and the site.
 # A release tag (vX.Y.Z) must match it; AGENTS.md has the numbering rules.
-VERSION = "1.1.0"
+VERSION = "1.1.1"
 REPO_URL = "https://github.com/matthewaburton/critical-rhino"
 SITE_URL = "https://matthewaburton.github.io/critical-rhino/"
 HEX_RE = re.compile(r"^#[0-9A-Fa-f]{6}$")
