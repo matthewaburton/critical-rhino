@@ -26,6 +26,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import build_ghostty
@@ -122,24 +123,27 @@ def validate(paths: list[Path]) -> list[str]:
         return []
     path = THEME_FILE
     env = {k: v for k, v in os.environ.items() if k != "TMUX"}
-    base = [tmux, "-L", f"rhino-check-{os.getpid()}", "-f", os.devnull]
+    # tmux leaves its socket file behind when the server stops, so the socket lives in a
+    # folder that's removed afterwards.
+    with tempfile.TemporaryDirectory(prefix="rhino-tmux-check-") as tmp:
+        base = [tmux, "-S", str(Path(tmp) / "socket"), "-f", os.devnull]
 
-    def run(*args: str) -> subprocess.CompletedProcess:
-        return subprocess.run([*base, *args], capture_output=True, text=True, env=env, check=False)
+        def run(*args: str) -> subprocess.CompletedProcess:
+            return subprocess.run([*base, *args], capture_output=True, text=True, env=env, check=False)
 
-    try:
-        out = run("new-session", "-d", ";", "source-file", str(path))
-        if out.returncode != 0 or out.stderr.strip():
-            detail = (out.stdout + out.stderr).strip().replace("\n", "; ")
-            return [f"tmux rejects {path.relative_to(rhino.ROOT)}: {detail or f'exit {out.returncode}'}"]
-        errors = []
-        for option, style, _ in STYLES:
-            got = run("show-options", "-gv", option).stdout.strip()
-            if got != style:
-                errors.append(f"tmux has {option} = {got!r} after loading the theme, not {style!r}")
-        return errors
-    finally:
-        run("kill-server")
+        try:
+            out = run("new-session", "-d", ";", "source-file", str(path))
+            if out.returncode != 0 or out.stderr.strip():
+                detail = (out.stdout + out.stderr).strip().replace("\n", "; ")
+                return [f"tmux rejects {path.relative_to(rhino.ROOT)}: {detail or f'exit {out.returncode}'}"]
+            errors = []
+            for option, style, _ in STYLES:
+                got = run("show-options", "-gv", option).stdout.strip()
+                if got != style:
+                    errors.append(f"tmux has {option} = {got!r} after loading the theme, not {style!r}")
+            return errors
+        finally:
+            run("kill-server")
 
 
 def outputs(data: dict) -> tuple[dict[Path, str], list[str], list[str]]:
